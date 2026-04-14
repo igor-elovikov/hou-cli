@@ -8,15 +8,14 @@ use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct Context {
-    config_dir: PathBuf,
-    data_dir: PathBuf,
+    pub config_dir: PathBuf,
+    pub data_dir: PathBuf,
     pub installer: Installer,
     pub products: Vec<Product>,
 }
 
 impl Context {
     pub fn new() -> Result<Self> {
-        // Find directories or return a helpful error if the OS fails
         let proj_dirs = ProjectDirs::from("", "", "hou")
             .context("Failed to determine system directory paths")?;
 

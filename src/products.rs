@@ -29,6 +29,10 @@ pub enum Product {
     HQueueClient(Installation),
 }
 
+pub fn discover_products() -> Result<Vec<Product>> {
+    todo!("products discovering")
+}
+
 fn env_paths_added<S: AsRef<OsStr>>(env_name: S, paths: &[PathBuf]) -> Result<OsString> {
     let path_env = env::var_os(env_name).unwrap_or(OsString::new());
 

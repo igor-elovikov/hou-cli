@@ -107,7 +107,7 @@ impl Installer {
     #[cfg(target_os = "linux")]
     fn candidate_paths(data_path: &Path) -> Vec<PathBuf> {
         vec![
-            PathBuf::from("/opt/sidefx/launcher/houdini_installer"),
+            PathBuf::from("/opt/sidefx/launcher/bin/houdini_installer"),
             data_path.join("installer/houdini_installer"),
         ]
     }
