@@ -2,12 +2,10 @@ mod build;
 mod download;
 mod products;
 
-use std::path::{Path, PathBuf};
 pub use build::{Build, BuildsQuery};
-pub use download::{BuildDownload, BuildSpec, BuildDownloadQuery};
-pub use products::{
-    Houdini, HoudiniLauncher, LauncherIso, Platform, Product, Release, Status,
-};
+pub use download::{BuildDownload, BuildDownloadQuery, BuildSpec};
+pub use products::{Houdini, HoudiniLauncher, LauncherIso, Platform, Product, Release, Status};
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow, bail};
 use serde::Deserialize;
@@ -37,7 +35,7 @@ impl Client {
         Ok(Self { agent, token })
     }
 
-    pub(super) fn call(&self, method: &str, args: Value, kwargs: Value) -> Result<Value> {
+    pub fn call(&self, method: &str, args: Value, kwargs: Value) -> Result<Value> {
         let payload = serde_json::to_string(&serde_json::json!([method, args, kwargs]))?;
 
         let response: Value = self
@@ -101,9 +99,7 @@ impl Client {
         version: impl Into<String>,
         dest: &Path,
     ) -> Result<PathBuf> {
-        if cfg!(not(target_os = "linux")) {
-            bail!("install_launcher currently supports Linux only");
-        }
+        let platform = Platform::host()?;
 
         let info = self
             .build_download(
@@ -111,30 +107,86 @@ impl Client {
                 version,
                 BuildSpec::Production,
             )
-            .platform(Platform::Linux)
+            .platform(platform)
             .send()?;
 
-        let installer = self.download_build(&info, dest)?;
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = std::fs::metadata(&installer)?.permissions();
-            perms.set_mode(0o755);
-            std::fs::set_permissions(&installer, perms)?;
-        }
-
-        let status = std::process::Command::new(&installer)
-            .arg("houdini_launcher")
-            .current_dir(dest)
-            .status()
-            .context("failed to run install_houdini_launcher.sh")?;
-        if !status.success() {
-            bail!("launcher install script failed with status {status}");
-        }
-
-        Ok(dest.join("launcher"))
+        let build = self.download_build(&info, dest)?;
+        install_launcher(&build, dest)
     }
+}
+
+#[cfg(target_os = "linux")]
+fn install_launcher(installer: &Path, dest: &Path) -> Result<PathBuf> {
+    use std::os::unix::fs::PermissionsExt;
+    let mut perms = std::fs::metadata(installer)?.permissions();
+    perms.set_mode(0o755);
+    std::fs::set_permissions(installer, perms)?;
+
+    let status = std::process::Command::new(installer)
+        .arg("houdini_launcher")
+        .current_dir(dest)
+        .status()
+        .context("failed to run install_houdini_launcher.sh")?;
+    if !status.success() {
+        bail!("launcher install script failed with status {status}");
+    }
+
+    Ok(dest.join("houdini_launcher"))
+}
+
+#[cfg(target_os = "macos")]
+fn install_launcher(dmg: &Path, dest: &Path) -> Result<PathBuf> {
+    let install_dir = dest.join("launcher");
+    std::fs::create_dir_all(&install_dir)
+        .with_context(|| format!("failed to create {}", install_dir.display()))?;
+
+    let mount_point = dest.join(".launcher_dmg_mount");
+    if mount_point.exists() {
+        std::fs::remove_dir_all(&mount_point).ok();
+    }
+    std::fs::create_dir_all(&mount_point)
+        .with_context(|| format!("failed to create {}", mount_point.display()))?;
+
+    let status = std::process::Command::new("hdiutil")
+        .args(["attach", "-nobrowse", "-quiet", "-mountpoint"])
+        .arg(&mount_point)
+        .arg(dmg)
+        .status()
+        .context("failed to run hdiutil attach")?;
+    if !status.success() {
+        bail!("hdiutil attach failed with status {status}");
+    }
+
+    let app_src = mount_point.join("Houdini Launcher.app");
+    let app_dst = install_dir.join("Houdini Launcher.app");
+    if app_dst.exists() {
+        std::fs::remove_dir_all(&app_dst)
+            .with_context(|| format!("failed to remove {}", app_dst.display()))?;
+    }
+    let copy_result = std::process::Command::new("cp")
+        .arg("-R")
+        .arg(&app_src)
+        .arg(&install_dir)
+        .status()
+        .context("failed to run cp for Houdini Launcher.app");
+
+    let detach_status = std::process::Command::new("hdiutil")
+        .args(["detach", "-quiet"])
+        .arg(&mount_point)
+        .status();
+    std::fs::remove_dir_all(&mount_point).ok();
+
+    let copy_status = copy_result?;
+    if !copy_status.success() {
+        bail!("cp of Houdini Launcher.app failed with status {copy_status}");
+    }
+    match detach_status {
+        Ok(s) if !s.success() => bail!("hdiutil detach failed with status {s}"),
+        Err(e) => return Err(e).context("failed to run hdiutil detach"),
+        _ => {}
+    }
+
+    Ok(app_dst)
 }
 
 fn fetch_token(agent: &Agent) -> Result<String> {

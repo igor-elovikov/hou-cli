@@ -16,4 +16,6 @@ pub enum Commands {
 pub struct Cli {
     #[clap(subcommand)]
     pub command: Option<Commands>,
+    #[arg(short, long)]
+    pub version: Option<String>,
 }

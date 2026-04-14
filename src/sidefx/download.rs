@@ -45,7 +45,10 @@ impl<'de> Deserialize<'de> for BuildDownload {
         use serde::de::Error;
         let r = Raw::deserialize(d)?;
         let date = NaiveDate::parse_from_str(&r.date, "%Y/%m/%d").map_err(D::Error::custom)?;
-        let release = r.releases_list.parse::<Release>().map_err(D::Error::custom)?;
+        let release = r
+            .releases_list
+            .parse::<Release>()
+            .map_err(D::Error::custom)?;
         let status = r.status.parse::<Status>().map_err(D::Error::custom)?;
         Ok(BuildDownload {
             date,
@@ -68,13 +71,14 @@ pub struct BuildDownloadQuery<'a> {
 }
 
 impl<'a> BuildDownloadQuery<'a> {
-    pub(super) fn new(
-        client: &'a Client,
-        product: Product,
-        version: String,
-        build: BuildSpec,
-    ) -> Self {
-        Self { client, product, version, build, platform: None }
+    pub fn new(client: &'a Client, product: Product, version: String, build: BuildSpec) -> Self {
+        Self {
+            client,
+            product,
+            version,
+            build,
+            platform: None,
+        }
     }
 
     pub fn platform(mut self, platform: Platform) -> Self {

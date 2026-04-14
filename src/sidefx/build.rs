@@ -31,14 +31,22 @@ impl<'de> Deserialize<'de> for Build {
         use serde::de::Error;
         let r = Raw::deserialize(d)?;
         let build: u32 = r.build.parse().map_err(D::Error::custom)?;
-        let version = Version::parse(&format!("{}.{}", r.version, build))
-            .map_err(D::Error::custom)?;
+        let version =
+            Version::parse(&format!("{}.{}", r.version, build)).map_err(D::Error::custom)?;
         let product = r.product.parse::<Product>().map_err(D::Error::custom)?;
         let platform = r.platform.parse::<Platform>().map_err(D::Error::custom)?;
         let date = NaiveDate::parse_from_str(&r.date, "%Y/%m/%d").map_err(D::Error::custom)?;
         let release = r.release.parse::<Release>().map_err(D::Error::custom)?;
         let status = r.status.parse::<Status>().map_err(D::Error::custom)?;
-        Ok(Build { build, version, product, platform, date, release, status })
+        Ok(Build {
+            build,
+            version,
+            product,
+            platform,
+            date,
+            release,
+            status,
+        })
     }
 }
 
@@ -51,8 +59,14 @@ pub struct BuildsQuery<'a> {
 }
 
 impl<'a> BuildsQuery<'a> {
-    pub(super) fn new(client: &'a Client, product: Product) -> Self {
-        Self { client, product, version: None, platform: None, only_production: None }
+    pub fn new(client: &'a Client, product: Product) -> Self {
+        Self {
+            client,
+            product,
+            version: None,
+            platform: None,
+            only_production: None,
+        }
     }
 
     pub fn version(mut self, version: impl Into<String>) -> Self {

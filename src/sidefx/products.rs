@@ -68,7 +68,7 @@ pub enum Status {
 }
 
 impl Product {
-    pub(super) fn as_api_str(&self) -> &'static str {
+    pub fn as_api_str(&self) -> &'static str {
         match self {
             Product::Docker => "docker",
             Product::SidefxLabs => "sidefxlabs",
@@ -142,13 +142,31 @@ impl FromStr for Product {
 }
 
 impl Platform {
-    pub(super) fn as_api_str(&self) -> &'static str {
+    pub fn as_api_str(&self) -> &'static str {
         match self {
             Platform::Win64 => "win64",
             Platform::Macos => "macos",
             Platform::MacosxArm64 => "macosx_arm64",
             Platform::Linux => "linux",
         }
+    }
+
+    pub fn host() -> Result<Self> {
+        #[cfg(target_os = "linux")]
+        return Ok(Platform::Linux);
+
+        #[cfg(target_os = "windows")]
+        return Ok(Platform::Win64);
+
+        #[cfg(target_os = "macos")]
+        if cfg!(target_arch = "aarch64") {
+            Ok(Platform::MacosxArm64)
+        } else {
+            Ok(Platform::Macos)
+        }
+
+        #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
+        Err(anyhow!("unsupported host platform"))
     }
 }
 
