@@ -6,7 +6,7 @@ use commands::Cli;
 mod commands;
 mod hou;
 mod installer;
-mod products;
+mod installations;
 mod sidefx;
 
 pub fn main() -> Result<()> {
@@ -17,7 +17,10 @@ pub fn main() -> Result<()> {
         Some(Commands::Run(cmd)) => {
             let houdini = hou.latest_houdini()?;
             cmd.run(houdini)?;
-        }
+        },
+        Some(Commands::Sidefx(cmd)) => {
+            cmd.run()?;
+        },
         _ => {}
     }
 
@@ -27,7 +30,6 @@ pub fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hou::Context;
 
     #[test]
     fn daily_builds_list() {
@@ -88,7 +90,7 @@ mod tests {
         let hou = hou::Context::new().expect("context");
         let client = sidefx::Client::new().expect("client");
         let path = client
-            .install_launcher(sidefx::HoudiniLauncher::Default, &hou.data_dir)
+            .install_launcher(sidefx::HoudiniLauncher::Default, "21.0", &hou.data_dir)
             .expect("install launcher");
         println!("launcher installed at {}", path.display());
         assert!(path.exists());

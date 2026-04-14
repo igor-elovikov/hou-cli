@@ -1,4 +1,4 @@
-use crate::products::{HoudiniInstallation, Installation, Product};
+use crate::installations::{HoudiniInstallation, Installation, InstalledProduct};
 use anyhow::{Context, Result, bail};
 use is_executable::IsExecutable;
 use std::path::{Path, PathBuf};
@@ -55,7 +55,7 @@ impl Installer {
         String::from_utf8(stdout).context("Failed to parse stdout")
     }
 
-    pub fn products(&self) -> Result<Vec<Product>> {
+    pub fn products(&self) -> Result<Vec<InstalledProduct>> {
         let list_result = self.run(InstallerCommand::List)?;
 
         let mut lines = list_result.lines();
@@ -80,13 +80,13 @@ impl Installer {
             let ready = line[ready_col..].trim() == "YES";
 
             let product = match component {
-                "Houdini" => Product::Houdini(HoudiniInstallation::new(path, version, ready)?),
-                "hserver" => Product::HServer(Installation::new(path, version, ready)?),
+                "Houdini" => InstalledProduct::Houdini(HoudiniInstallation::new(path, version, ready)?),
+                "hserver" => InstalledProduct::HServer(Installation::new(path, version, ready)?),
                 "License Server" => {
-                    Product::LicenseServer(Installation::new(path, version, ready)?)
+                    InstalledProduct::LicenseServer(Installation::new(path, version, ready)?)
                 }
-                "HQueue Server" => Product::HQueueServer(Installation::new(path, version, ready)?),
-                "HQueue Client" => Product::HQueueClient(Installation::new(path, version, ready)?),
+                "HQueue Server" => InstalledProduct::HQueueServer(Installation::new(path, version, ready)?),
+                "HQueue Client" => InstalledProduct::HQueueClient(Installation::new(path, version, ready)?),
                 other => bail!("Unknown component: {other}"),
             };
 

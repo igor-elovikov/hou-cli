@@ -1,11 +1,10 @@
-use crate::products::HoudiniInstallation;
+use crate::installations::HoudiniInstallation;
 use anyhow::{Context, Result};
 use clap::Args;
 use std::process::Command;
 
 #[derive(Args)]
 pub struct Run {
-    /// This captures everything after 'run'
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     args: Vec<String>,
 }

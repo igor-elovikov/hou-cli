@@ -1,7 +1,8 @@
 use anyhow::{Result, anyhow};
+use serde::Serialize;
 use std::str::FromStr;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub enum Product {
     Houdini(Houdini),
     HoudiniLauncher(HoudiniLauncher),
@@ -10,7 +11,7 @@ pub enum Product {
     SidefxLabs,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub enum Houdini {
     Default,
     Py3,
@@ -22,7 +23,7 @@ pub enum Houdini {
     Gcc9Py310,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub enum HoudiniLauncher {
     Default,
     Py3,
@@ -32,7 +33,7 @@ pub enum HoudiniLauncher {
     Qt6,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub enum LauncherIso {
     Default,
     Py3,
@@ -46,7 +47,7 @@ pub enum LauncherIso {
     Gcc9Py310,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub enum Platform {
     Win64,
     Macos,
@@ -54,13 +55,13 @@ pub enum Platform {
     Linux,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub enum Release {
     Gold,
     Development,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub enum Status {
     Good,
     Bad,

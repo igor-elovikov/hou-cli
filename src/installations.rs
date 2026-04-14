@@ -21,7 +21,7 @@ pub struct HoudiniInstallation {
 }
 
 #[derive(Debug)]
-pub enum Product {
+pub enum InstalledProduct {
     Houdini(HoudiniInstallation),
     HServer(Installation),
     LicenseServer(Installation),
@@ -29,7 +29,7 @@ pub enum Product {
     HQueueClient(Installation),
 }
 
-pub fn discover_products() -> Result<Vec<Product>> {
+pub fn discover_installations() -> Result<Vec<InstalledProduct>> {
     todo!("products discovering")
 }
 

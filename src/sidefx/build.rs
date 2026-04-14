@@ -2,10 +2,10 @@ use super::{Client, Platform, Product, Release, Status};
 use anyhow::{Context, Result};
 use chrono::NaiveDate;
 use semver::Version;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Build {
     pub build: u32,
     pub version: Version,

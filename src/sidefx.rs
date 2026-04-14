@@ -98,6 +98,7 @@ impl Client {
     pub fn install_launcher(
         &self,
         launcher: HoudiniLauncher,
+        version: impl Into<String>,
         dest: &Path,
     ) -> Result<PathBuf> {
         if cfg!(not(target_os = "linux")) {
@@ -107,7 +108,7 @@ impl Client {
         let info = self
             .build_download(
                 Product::HoudiniLauncher(launcher),
-                "21.0",
+                version,
                 BuildSpec::Production,
             )
             .platform(Platform::Linux)

@@ -1,5 +1,5 @@
 use crate::installer::Installer;
-use crate::products::{HoudiniInstallation, Product};
+use crate::installations::{HoudiniInstallation, InstalledProduct};
 use anyhow::Context as _;
 use anyhow::Result;
 use directories::ProjectDirs;
@@ -11,7 +11,7 @@ pub struct Context {
     pub config_dir: PathBuf,
     pub data_dir: PathBuf,
     pub installer: Installer,
-    pub products: Vec<Product>,
+    pub products: Vec<InstalledProduct>,
 }
 
 impl Context {
@@ -44,7 +44,7 @@ impl Context {
         self.products
             .iter()
             .filter_map(|p| match p {
-                Product::Houdini(h) => Some(h),
+                InstalledProduct::Houdini(h) => Some(h),
                 _ => None,
             })
             .max_by(|a, b| a.version.cmp(&b.version))
