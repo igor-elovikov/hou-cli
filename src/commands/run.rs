@@ -10,7 +10,7 @@ pub struct Run {
 }
 
 impl Run {
-    pub fn run(&self, houdini: &HoudiniInstallation) -> Result<()> {
+    pub fn run(self, houdini: &HoudiniInstallation) -> Result<()> {
         let (command, args) = self.args.split_first().context("No command provided")?;
         let mut command = Command::new(command);
         command.args(args);
