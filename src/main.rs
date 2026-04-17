@@ -1,15 +1,18 @@
-use crate::commands::Commands;
 use anyhow::Result;
 use clap::Parser;
-use commands::Cli;
+use commands::{Cli, Commands, init::init};
 
 mod commands;
 mod hou;
 mod installations;
 mod installer;
+pub mod package;
 mod sidefx;
 
 pub fn main() -> Result<()> {
+    env_logger::init();
+    log::info!("Initializing...");
+
     let hou = hou::Context::new()?;
     let cli = Cli::parse();
 
@@ -21,6 +24,7 @@ pub fn main() -> Result<()> {
         Some(Commands::Sidefx(cmd)) => {
             cmd.run()?;
         }
+        Some(Commands::Init) => init(&hou)?,
         _ => {}
     }
 

@@ -2,14 +2,16 @@ mod build;
 mod download;
 mod products;
 
-pub use build::{Build, BuildsQuery};
-pub use download::{BuildDownload, BuildDownloadQuery, BuildSpec};
-pub use products::{Houdini, HoudiniLauncher, LauncherIso, Platform, Product, Release, Status};
-use std::path::{Path, PathBuf};
-
 use anyhow::{Context, Result, anyhow, bail};
+pub use build::BuildsQuery;
+pub use download::{BuildDownload, BuildDownloadQuery, BuildSpec};
+use indicatif::{ProgressBar, ProgressStyle};
+pub use products::{HoudiniLauncher, Platform, Product, Release, Status};
 use serde::Deserialize;
 use serde_json::Value;
+use std::io::Read;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
 use ureq::Agent;
 
 const CLIENT_ID: &str = "j6VpXfB18GrkBsvO1SPrr5Z2wxwjjbmS9QiuVGFN";
@@ -69,16 +71,27 @@ impl Client {
             .with_context(|| format!("failed to create {}", dir.display()))?;
         let file_path = dir.join(&info.filename);
 
-        let bytes: Vec<u8> = self
+        // 1. Start the request
+        let mut response = self
             .agent
             .get(&info.download_url)
             .call()
-            .context("download request failed")?
-            .body_mut()
-            .with_config()
-            .limit(u64::MAX)
-            .read_to_vec()
+            .context("download request failed")?;
+
+        // 2. Setup Progress Bar
+        let pb = ProgressBar::new(info.size);
+        pb.set_style(ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta}) {msg}")?);
+        // .progress_chars("#>-"));
+
+        let mut bytes = Vec::with_capacity(info.size as usize);
+        let mut reader = pb.wrap_read(response.body_mut().as_reader());
+
+        reader
+            .read_to_end(&mut bytes)
             .context("failed to read download body")?;
+
+        pb.finish_with_message("Download complete");
 
         if bytes.len() as u64 != info.size {
             bail!("size mismatch: expected {}, got {}", info.size, bytes.len());
@@ -101,13 +114,18 @@ impl Client {
     ) -> Result<PathBuf> {
         let platform = Platform::host()?;
 
+        let launcher_platform = match platform {
+            Platform::Macos | Platform::MacosxArm64 => Platform::Macos,
+            other => other,
+        };
+
         let info = self
             .build_download(
                 Product::HoudiniLauncher(launcher),
                 version,
                 BuildSpec::Production,
             )
-            .platform(platform)
+            .platform(launcher_platform)
             .send()?;
 
         let build = self.download_build(&info, dest)?;
@@ -136,10 +154,18 @@ fn install_launcher(installer: &Path, dest: &Path) -> Result<PathBuf> {
 
 #[cfg(target_os = "macos")]
 fn install_launcher(dmg: &Path, dest: &Path) -> Result<PathBuf> {
+    let pb = ProgressBar::new_spinner();
+    pb.enable_steady_tick(Duration::from_millis(120));
+    pb.set_style(
+        ProgressStyle::with_template("{spinner:.blue} {msg}")?
+            .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
+    );
+
     let install_dir = dest.join("launcher");
     std::fs::create_dir_all(&install_dir)
         .with_context(|| format!("failed to create {}", install_dir.display()))?;
 
+    pb.set_message("Mounting DMG...");
     let mount_point = dest.join(".launcher_dmg_mount");
     if mount_point.exists() {
         std::fs::remove_dir_all(&mount_point).ok();
@@ -153,6 +179,7 @@ fn install_launcher(dmg: &Path, dest: &Path) -> Result<PathBuf> {
         .arg(dmg)
         .status()
         .context("failed to run hdiutil attach")?;
+
     if !status.success() {
         bail!("hdiutil attach failed with status {status}");
     }
@@ -163,6 +190,8 @@ fn install_launcher(dmg: &Path, dest: &Path) -> Result<PathBuf> {
         std::fs::remove_dir_all(&app_dst)
             .with_context(|| format!("failed to remove {}", app_dst.display()))?;
     }
+
+    pb.set_message("Copying Houdini Launcher (this may take a moment)...");
     let copy_result = std::process::Command::new("cp")
         .arg("-R")
         .arg(&app_src)
@@ -170,6 +199,7 @@ fn install_launcher(dmg: &Path, dest: &Path) -> Result<PathBuf> {
         .status()
         .context("failed to run cp for Houdini Launcher.app");
 
+    pb.set_message("Unmounting and cleaning up...");
     let detach_status = std::process::Command::new("hdiutil")
         .args(["detach", "-quiet"])
         .arg(&mount_point)
@@ -185,6 +215,11 @@ fn install_launcher(dmg: &Path, dest: &Path) -> Result<PathBuf> {
         Err(e) => return Err(e).context("failed to run hdiutil detach"),
         _ => {}
     }
+
+    std::fs::remove_file(dmg).with_context(|| format!("failed to remove {}", dmg.display()))?;
+
+    pb.finish_and_clear();
+    println!("Successfully installed Houdini Launcher!");
 
     Ok(app_dst)
 }

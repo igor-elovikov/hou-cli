@@ -1,5 +1,5 @@
-use crate::installer::Installer;
 use crate::installations::{HoudiniInstallation, InstalledProduct};
+use crate::installer::Installer;
 use anyhow::Context as _;
 use anyhow::Result;
 use directories::ProjectDirs;
@@ -22,6 +22,9 @@ impl Context {
         let config_dir = proj_dirs.config_dir().to_path_buf();
         let data_dir = proj_dirs.data_dir().to_path_buf();
 
+        log::info!("Config directory: {}", config_dir.display());
+        log::info!("Data directory: {}", data_dir.display());
+
         // Create folders immediately so they are ready for use
         fs::create_dir_all(&config_dir)
             .with_context(|| format!("Failed to create config directory at {:?}", config_dir))?;
@@ -30,6 +33,8 @@ impl Context {
             .with_context(|| format!("Failed to create data directory at {:?}", data_dir))?;
 
         let installer = Installer::discover(&data_dir)?;
+        log::info!("Installer discovered: {:?}", installer);
+
         let products = installer.products()?;
 
         Ok(Self {
@@ -47,7 +52,7 @@ impl Context {
                 InstalledProduct::Houdini(h) => Some(h),
                 _ => None,
             })
-            .max_by(|a, b| a.version.cmp(&b.version))
+            .max_by_key(|h| &h.version)
             .context("No Houdini installations found")
     }
 }

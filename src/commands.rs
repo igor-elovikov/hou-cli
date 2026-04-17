@@ -1,7 +1,8 @@
 pub use clap::{Parser, Subcommand};
 
+pub mod init;
 mod run;
-pub mod sidefx;
+mod sidefx;
 
 #[derive(Subcommand)]
 pub enum Commands {

@@ -80,13 +80,19 @@ impl Installer {
             let ready = line[ready_col..].trim() == "YES";
 
             let product = match component {
-                "Houdini" => InstalledProduct::Houdini(HoudiniInstallation::new(path, version, ready)?),
+                "Houdini" => {
+                    InstalledProduct::Houdini(HoudiniInstallation::new(path, version, ready)?)
+                }
                 "hserver" => InstalledProduct::HServer(Installation::new(path, version, ready)?),
                 "License Server" => {
                     InstalledProduct::LicenseServer(Installation::new(path, version, ready)?)
                 }
-                "HQueue Server" => InstalledProduct::HQueueServer(Installation::new(path, version, ready)?),
-                "HQueue Client" => InstalledProduct::HQueueClient(Installation::new(path, version, ready)?),
+                "HQueue Server" => {
+                    InstalledProduct::HQueueServer(Installation::new(path, version, ready)?)
+                }
+                "HQueue Client" => {
+                    InstalledProduct::HQueueClient(Installation::new(path, version, ready)?)
+                }
                 other => bail!("Unknown component: {other}"),
             };
 
@@ -99,16 +105,16 @@ impl Installer {
     #[cfg(target_os = "macos")]
     fn candidate_paths(data_path: &Path) -> Vec<PathBuf> {
         vec![
+            data_path.join("launcher/Houdini Launcher.app/Contents/MacOS/houdini_installer"),
             PathBuf::from("/Applications/Houdini Launcher.app/Contents/MacOS/houdini_installer"),
-            data_path.join("installer/Houdini Launcher.app/Contents/MacOS/houdini_installer"),
         ]
     }
 
     #[cfg(target_os = "linux")]
     fn candidate_paths(data_path: &Path) -> Vec<PathBuf> {
         vec![
-            PathBuf::from("/opt/sidefx/launcher/bin/houdini_installer"),
             data_path.join("installer/houdini_installer"),
+            PathBuf::from("/opt/sidefx/launcher/bin/houdini_installer"),
         ]
     }
 
