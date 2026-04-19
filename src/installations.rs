@@ -17,6 +17,7 @@ pub struct Installation {
 pub struct HoudiniInstallation {
     hfs: PathBuf,
     pub version: Version,
+    pub user_prefs_dir: PathBuf,
     ready: bool,
 }
 
@@ -67,12 +68,32 @@ impl HoudiniInstallation {
         };
 
         let version = Version::parse(version_str)?;
+        let user_prefs_dir = Self::user_prefs_dir(&version)?;
 
         Ok(HoudiniInstallation {
             hfs,
             version,
+            user_prefs_dir,
             ready,
         })
+    }
+
+    #[cfg(target_os = "linux")]
+    fn user_prefs_dir() -> Result<PathBuf> {
+        let user = directories::UserDirs::new().context("Failed to get user home directory")?;
+        Ok(user.home_dir().to_path_buf())
+    }
+
+    #[cfg(target_os = "macos")]
+    fn user_prefs_dir(version: &Version) -> Result<PathBuf> {
+        let dirs = directories::BaseDirs::new().context("Failed to get user home directory")?;
+        let pref = dirs.preference_dir();
+
+        let houdini_prefs = pref
+            .join("houdini")
+            .join(format!("{}.{}", version.major, version.minor));
+
+        Ok(houdini_prefs)
     }
 
     fn env(&self) -> Result<Vec<(OsString, OsString)>> {

@@ -37,6 +37,8 @@ impl Context {
 
         let products = installer.products()?;
 
+        log::info!("Products installed: {:#?}", products);
+
         Ok(Self {
             config_dir,
             data_dir,
