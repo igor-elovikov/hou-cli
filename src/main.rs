@@ -25,7 +25,8 @@ pub fn main() -> Result<()> {
             cmd.run()?;
         }
         Some(Commands::Init) => init(&hou)?,
-        _ => {}
+        Some(Commands::Package(cmd)) => cmd.run(&hou)?,
+        None => {}
     }
 
     Ok(())

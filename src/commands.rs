@@ -1,16 +1,16 @@
 pub use clap::{Parser, Subcommand};
 
 pub mod init;
+mod package;
 mod run;
 mod sidefx;
 
 #[derive(Subcommand)]
 pub enum Commands {
     Init,
-    Download,
-    Install,
     Run(run::Run),
     Sidefx(sidefx::SideFX),
+    Package(package::PackageCmd),
 }
 
 #[derive(Parser)]

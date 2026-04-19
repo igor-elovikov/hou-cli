@@ -24,4 +24,16 @@ env_logger = "0.11.10"
 semver = { version = "1.0.28", features = ["serde"] }
 serde = { version = "1.0.228", features = ["derive"] }
 ureq = { version = "3.3.0", features = ["json"] }
+gix = { version = "0.81", default-features = false, features = [
+    "basic",
+    "sha1",
+    "max-performance-safe",
+    "blocking-http-transport-reqwest-rust-tls",
+    "worktree-mutation",
+    "revision",
+    "credentials",
+] }
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
+walkdir = "2.5"
+tempfile = "3"
 
