@@ -106,7 +106,6 @@ fn print_list(pkgs: &Packages<'_>) {
     for (path, entry) in &m.hou_package_manifest {
         let (kind, detail) = match entry {
             SourceMetadata::Git(g) => ("git", format!("{} @ {}", g.url, g.version)),
-            SourceMetadata::LocalGit(g) => ("local_git", format!("commit {}", g.commit)),
             SourceMetadata::Folder(_) => ("folder", String::new()),
         };
         println!("{:10} {}  [{}]", kind, path.display(), detail);

@@ -1,9 +1,8 @@
 use anyhow::{Context, Result, anyhow, bail};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 pub enum InstallSource {
     WebGit { url: String, version: String },
-    LocalGit { path: PathBuf },
     Folder { path: PathBuf },
 }
 
@@ -47,12 +46,10 @@ impl InstallSpec {
             bail!("--tag / --latest only apply to web git sources");
         }
 
-        let source = if is_git_repo(&path) {
-            InstallSource::LocalGit { path }
-        } else {
-            InstallSource::Folder { path }
-        };
-        Ok(Self { source, name })
+        Ok(Self {
+            source: InstallSource::Folder { path },
+            name,
+        })
     }
 }
 
@@ -62,10 +59,6 @@ pub fn looks_like_url(s: &str) -> bool {
         || s.starts_with("git@")
         || s.starts_with("ssh://")
         || s.starts_with("git://")
-}
-
-fn is_git_repo(path: &Path) -> bool {
-    gix::open(path).is_ok()
 }
 
 fn expand_tilde(raw: &str) -> String {

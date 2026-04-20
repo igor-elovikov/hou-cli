@@ -3,9 +3,7 @@ use crate::installations::HoudiniInstallation;
 use crate::package::cache::install_dir_for;
 use crate::package::checksum::dir_digest;
 use crate::package::git;
-use crate::package::manifest::{
-    FolderMeta, GitMeta, LocalGitMeta, Manifest, SourceMetadata,
-};
+use crate::package::manifest::{FolderMeta, GitMeta, Manifest, SourceMetadata};
 use crate::package::source::{InstallSource, InstallSpec};
 use anyhow::{Result, bail};
 use std::path::PathBuf;
@@ -20,7 +18,6 @@ pub fn install(
         InstallSource::WebGit { url, version } => {
             install_web_git(ctx, houdini, manifest, &url, &version, spec.name.as_deref())
         }
-        InstallSource::LocalGit { path } => install_local_git(manifest, path),
         InstallSource::Folder { path } => install_folder(manifest, path),
     }
 }
@@ -61,21 +58,6 @@ fn install_web_git(
 
     add_entry(manifest, install_dir.clone(), entry);
     println!("Installed {} at {}", url, install_dir.display());
-    Ok(())
-}
-
-fn install_local_git(manifest: &mut Manifest, path: PathBuf) -> Result<()> {
-    if manifest.hou_package_manifest.contains_key(&path) {
-        bail!("Package already installed at {}", path.display());
-    }
-    let commit = git::open_head_commit(&path)?;
-    log::info!("Linking local git {} @ {commit}", path.display());
-    let entry = SourceMetadata::LocalGit(LocalGitMeta {
-        path: path.clone(),
-        commit,
-    });
-    add_entry(manifest, path.clone(), entry);
-    println!("Linked local git repo at {}", path.display());
     Ok(())
 }
 

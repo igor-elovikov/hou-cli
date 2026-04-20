@@ -96,13 +96,6 @@ fn short_sha(sha: &str) -> &str {
     &sha[..sha.len().min(8)]
 }
 
-pub fn open_head_commit(path: &Path) -> Result<String> {
-    let repo = gix::open(path)
-        .with_context(|| format!("Failed to open git repo at {}", path.display()))?;
-    let id = repo.head_id().context("Failed to resolve HEAD")?;
-    Ok(id.to_string())
-}
-
 pub fn list_remote_tags(url: &str) -> Result<Vec<String>> {
     log::debug!("ls-refs {url}");
     let tmp = tempfile::tempdir().context("Failed to create scratch dir for ls-refs")?;

@@ -20,8 +20,6 @@ pub struct Manifest {
 pub enum SourceMetadata {
     #[serde(rename = "git")]
     Git(GitMeta),
-    #[serde(rename = "local_git")]
-    LocalGit(LocalGitMeta),
     #[serde(rename = "folder")]
     Folder(FolderMeta),
 }
@@ -32,12 +30,6 @@ pub struct GitMeta {
     pub commit: String,
     pub checksum: String,
     pub version: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LocalGitMeta {
-    pub path: PathBuf,
-    pub commit: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

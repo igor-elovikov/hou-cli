@@ -30,7 +30,7 @@ pub fn update(
 
     let git_meta = match entry {
         SourceMetadata::Git(g) => g,
-        SourceMetadata::LocalGit(_) | SourceMetadata::Folder(_) => {
+        SourceMetadata::Folder(_) => {
             bail!("Update only applies to web-git packages");
         }
     };
