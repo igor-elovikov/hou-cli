@@ -79,14 +79,20 @@ impl HoudiniInstallation {
     }
 
     #[cfg(target_os = "linux")]
-    fn user_prefs_dir() -> Result<PathBuf> {
-        let user = directories::UserDirs::new().context("Failed to get user home directory")?;
-        Ok(user.home_dir().to_path_buf())
+    fn user_prefs_dir(version: &Version) -> Result<PathBuf> {
+        let dirs = directories::BaseDirs::new().context("Failed to get user preference directory")?;
+        let home = dirs.home_dir();
+
+        let houdini_prefs = home
+            .join("houdini")
+            .join(format!("{}.{}", version.major, version.minor));
+
+        Ok(houdini_prefs)
     }
 
     #[cfg(target_os = "macos")]
     fn user_prefs_dir(version: &Version) -> Result<PathBuf> {
-        let dirs = directories::BaseDirs::new().context("Failed to get user home directory")?;
+        let dirs = directories::BaseDirs::new().context("Failed to get user preference directory")?;
         let pref = dirs.preference_dir();
 
         let houdini_prefs = pref
