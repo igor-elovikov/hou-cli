@@ -84,8 +84,7 @@ impl HoudiniInstallation {
         let home = dirs.home_dir();
 
         let houdini_prefs = home
-            .join("houdini")
-            .join(format!("{}.{}", version.major, version.minor));
+            .join(format!("houdini{}.{}", version.major, version.minor));
 
         Ok(houdini_prefs)
     }
