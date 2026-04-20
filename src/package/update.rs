@@ -4,9 +4,8 @@ use crate::package::checksum::dir_digest;
 use crate::package::git;
 use crate::package::manifest::{GitMeta, Manifest, SourceMetadata};
 use crate::package::uninstall::resolve_key;
-use anyhow::{Context as _, Result, anyhow, bail};
+use anyhow::{Result, anyhow, bail};
 use semver::Version;
-use std::fs;
 
 pub enum UpdateTarget {
     Auto,
@@ -31,7 +30,7 @@ pub fn update(
     let git_meta = match entry {
         SourceMetadata::Git(g) => g,
         SourceMetadata::Folder(_) => {
-            bail!("Update only applies to web-git packages");
+            bail!("Update only applies to git packages");
         }
     };
 
@@ -51,12 +50,11 @@ pub fn update(
 
     let ref_name = git::ref_kind_from_version(&new_version).as_ref_name();
 
-    if key.exists() {
-        fs::remove_dir_all(&key)
-            .with_context(|| format!("Failed to clear {}", key.display()))?;
-    }
-
-    let commit = git::clone_at(&git_meta.url, &key, ref_name)?;
+    let commit = if key.join(".git").is_dir() {
+        git::fetch_update(&key, ref_name)?
+    } else {
+        git::clone_at(&git_meta.url, &key, ref_name)?
+    };
     let checksum = dir_digest(&key)?;
 
     manifest.hou_package_manifest.insert(

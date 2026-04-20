@@ -1,10 +1,7 @@
-use anyhow::{Context, Result, anyhow};
-use gix::progress::Discard;
-use gix::remote::fetch::Shallow;
+use anyhow::{Context, Result, bail};
 use indicatif::{ProgressBar, ProgressStyle};
-use std::num::NonZeroU32;
 use std::path::Path;
-use std::sync::atomic::AtomicBool;
+use std::process::{Command, Output};
 use std::time::Duration;
 
 pub fn clone_at(url: &str, dest: &Path, ref_name: Option<&str>) -> Result<String> {
@@ -24,107 +21,182 @@ pub fn clone_at(url: &str, dest: &Path, ref_name: Option<&str>) -> Result<String
             .with_context(|| format!("Failed to create {}", parent.display()))?;
     }
 
+    let pb = spinner(format!(
+        "Cloning {url} @ {}",
+        ref_name.unwrap_or("HEAD")
+    ));
+
+    let mut cmd = Command::new("git");
+    cmd.arg("clone")
+        .arg("--depth=1")
+        .arg("--single-branch")
+        .arg("--quiet");
+    if let Some(name) = ref_name {
+        cmd.arg("--branch").arg(name);
+    }
+    cmd.arg(url).arg(dest);
+
+    let out = cmd
+        .output()
+        .context("Failed to spawn `git clone` — is git on PATH?")?;
+    if !out.status.success() {
+        pb.finish_and_clear();
+        bail!(
+            "git clone failed ({}): {}",
+            out.status,
+            String::from_utf8_lossy(&out.stderr).trim()
+        );
+    }
+
+    let commit = head_commit(dest)?;
+    log::info!("Fetched {url} @ {commit}");
+
+    pb.finish_with_message(format!(
+        "Cloned {} @ {}",
+        short_sha(&commit),
+        ref_name.unwrap_or("HEAD")
+    ));
+    Ok(commit)
+}
+
+pub fn fetch_update(dest: &Path, ref_name: Option<&str>) -> Result<String> {
+    log::info!(
+        "Shallow-fetching update in {} (ref={})",
+        dest.display(),
+        ref_name.unwrap_or("HEAD")
+    );
+
+    let pb = spinner(format!("Fetching {}", ref_name.unwrap_or("HEAD")));
+
+    let mut cmd = Command::new("git");
+    cmd.arg("-C")
+        .arg(dest)
+        .arg("fetch")
+        .arg("--depth=1")
+        .arg("--quiet")
+        .arg("origin");
+    if let Some(name) = ref_name {
+        cmd.arg(name);
+    }
+    run(cmd, &pb, "git fetch")?;
+
+    let reset_target = if ref_name.is_some() {
+        "FETCH_HEAD"
+    } else {
+        "FETCH_HEAD"
+    };
+    pb.set_message("Resetting worktree");
+    let mut reset = Command::new("git");
+    reset
+        .arg("-C")
+        .arg(dest)
+        .args(["reset", "--hard", "--quiet", reset_target]);
+    run(reset, &pb, "git reset")?;
+
+    pb.set_message("Cleaning untracked files");
+    let mut clean = Command::new("git");
+    clean
+        .arg("-C")
+        .arg(dest)
+        .args(["clean", "-fdxq", "--exclude=!.git"]);
+    run(clean, &pb, "git clean")?;
+
+    let commit = head_commit(dest)?;
+    pb.finish_with_message(format!(
+        "Updated to {} @ {}",
+        short_sha(&commit),
+        ref_name.unwrap_or("HEAD")
+    ));
+    Ok(commit)
+}
+
+pub fn list_remote_tags(url: &str) -> Result<Vec<String>> {
+    log::debug!("ls-remote --tags {url}");
+    let out = Command::new("git")
+        .args(["ls-remote", "--tags", url])
+        .output()
+        .context("Failed to spawn `git ls-remote`")?;
+    if !out.status.success() {
+        bail!(
+            "git ls-remote failed ({}): {}",
+            out.status,
+            String::from_utf8_lossy(&out.stderr).trim()
+        );
+    }
+
+    let stdout = String::from_utf8(out.stdout).context("Non-utf8 output from git ls-remote")?;
+    let mut tags = Vec::new();
+    for line in stdout.lines() {
+        let Some((_sha, full)) = line.split_once('\t') else {
+            continue;
+        };
+        let Some(name) = full.strip_prefix("refs/tags/") else {
+            continue;
+        };
+        if name.ends_with("^{}") {
+            continue;
+        }
+        tags.push(name.to_string());
+    }
+    log::debug!("Found {} remote tag(s) on {url}", tags.len());
+    Ok(tags)
+}
+
+fn head_commit(dest: &Path) -> Result<String> {
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(dest)
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .context("Failed to spawn `git rev-parse HEAD`")?;
+    check_status(&out, "git rev-parse HEAD")?;
+    let sha = String::from_utf8(out.stdout)
+        .context("Non-utf8 output from git rev-parse")?
+        .trim()
+        .to_string();
+    Ok(sha)
+}
+
+fn run(mut cmd: Command, pb: &ProgressBar, label: &str) -> Result<()> {
+    let out = cmd
+        .output()
+        .with_context(|| format!("Failed to spawn `{label}`"))?;
+    if !out.status.success() {
+        pb.finish_and_clear();
+        bail!(
+            "{label} failed ({}): {}",
+            out.status,
+            String::from_utf8_lossy(&out.stderr).trim()
+        );
+    }
+    Ok(())
+}
+
+fn check_status(out: &Output, label: &str) -> Result<()> {
+    if !out.status.success() {
+        bail!(
+            "{label} failed ({}): {}",
+            out.status,
+            String::from_utf8_lossy(&out.stderr).trim()
+        );
+    }
+    Ok(())
+}
+
+fn spinner(message: String) -> ProgressBar {
     let pb = ProgressBar::new_spinner();
     pb.enable_steady_tick(Duration::from_millis(120));
     pb.set_style(
-        ProgressStyle::with_template("{spinner:.blue} [{elapsed_precise}] {msg}")?
+        ProgressStyle::with_template("{spinner:.blue} [{elapsed_precise}] {msg}")
+            .expect("valid template")
             .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
     );
-    let display_ref = ref_name.unwrap_or("HEAD");
-    pb.set_message(format!("Fetching {url} @ {display_ref}"));
-
-    let interrupt = AtomicBool::new(false);
-
-    let mut prep = gix::prepare_clone(url, dest)
-        .with_context(|| {
-            pb.finish_and_clear();
-            format!("Failed to initiate clone of {url}")
-        })?
-        .with_shallow(Shallow::DepthAtRemote(NonZeroU32::new(1).unwrap()));
-
-    if let Some(name) = ref_name {
-        prep = prep
-            .with_ref_name(Some(name))
-            .with_context(|| {
-                pb.finish_and_clear();
-                format!("Invalid ref name: {name}")
-            })?;
-    }
-
-    let fetch_result = prep.fetch_then_checkout(Discard, &interrupt);
-    let (mut checkout, _outcome) = match fetch_result {
-        Ok(v) => v,
-        Err(e) => {
-            pb.finish_and_clear();
-            return Err(anyhow::Error::from(e).context(format!("Failed to fetch from {url}")));
-        }
-    };
-
-    pb.set_message(format!("Checking out {display_ref}"));
-
-    let checkout_result = checkout.main_worktree(Discard, &interrupt);
-    let (repo, _co) = match checkout_result {
-        Ok(v) => v,
-        Err(e) => {
-            pb.finish_and_clear();
-            return Err(anyhow::Error::from(e)
-                .context(format!("Failed to check out worktree at {}", dest.display())));
-        }
-    };
-
-    let commit = repo
-        .head_id()
-        .context("Failed to resolve HEAD after clone")?
-        .to_string();
-    log::info!("Fetched {url} @ {commit}");
-
-    drop(repo);
-
-    let git_dir = dest.join(".git");
-    if git_dir.exists() {
-        pb.set_message("Stripping .git");
-        log::debug!("Stripping {}", git_dir.display());
-        std::fs::remove_dir_all(&git_dir)
-            .with_context(|| format!("Failed to strip .git at {}", git_dir.display()))?;
-    }
-
-    pb.finish_with_message(format!("Fetched {} @ {}", short_sha(&commit), display_ref));
-    Ok(commit)
+    pb.set_message(message);
+    pb
 }
 
 fn short_sha(sha: &str) -> &str {
     &sha[..sha.len().min(8)]
-}
-
-pub fn list_remote_tags(url: &str) -> Result<Vec<String>> {
-    log::debug!("ls-refs {url}");
-    let tmp = tempfile::tempdir().context("Failed to create scratch dir for ls-refs")?;
-    let repo = gix::init_bare(tmp.path())
-        .with_context(|| format!("Failed to init scratch repo at {}", tmp.path().display()))?;
-    let remote = repo
-        .remote_at(url)
-        .with_context(|| format!("Invalid remote URL: {url}"))?;
-    let connection = remote
-        .connect(gix::remote::Direction::Fetch)
-        .with_context(|| format!("Failed to connect to {url}"))?;
-    let (ref_map, _handshake) = connection
-        .ref_map(Discard, gix::remote::ref_map::Options::default())
-        .with_context(|| format!("Failed to ls-refs on {url}"))?;
-
-    let prefix = b"refs/tags/";
-    let mut tags = Vec::new();
-    for r in &ref_map.remote_refs {
-        let (full, _id, _peeled) = r.unpack();
-        if full.starts_with(prefix) {
-            let name = std::str::from_utf8(&full[prefix.len()..])
-                .map_err(|e| anyhow!("Non-utf8 tag name: {e}"))?;
-            if !name.ends_with("^{}") {
-                tags.push(name.to_string());
-            }
-        }
-    }
-    log::debug!("Found {} remote tag(s) on {url}", tags.len());
-    Ok(tags)
 }
 
 pub fn ref_kind_from_version(version: &str) -> RefKind<'_> {

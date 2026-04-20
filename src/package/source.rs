@@ -2,7 +2,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use std::path::PathBuf;
 
 pub enum InstallSource {
-    WebGit { url: String, version: String },
+    Git { url: String, version: String },
     Folder { path: PathBuf },
 }
 
@@ -25,7 +25,7 @@ impl InstallSpec {
         if looks_like_url(raw) {
             let version = tag.unwrap_or_else(|| "latest".into());
             return Ok(Self {
-                source: InstallSource::WebGit {
+                source: InstallSource::Git {
                     url: raw.to_string(),
                     version,
                 },
@@ -43,7 +43,7 @@ impl InstallSpec {
         }
 
         if tag.is_some() || latest {
-            bail!("--tag / --latest only apply to web git sources");
+            bail!("--tag / --latest only apply to git sources");
         }
 
         Ok(Self {

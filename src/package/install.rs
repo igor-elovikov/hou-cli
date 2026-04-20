@@ -15,14 +15,14 @@ pub fn install(
     spec: InstallSpec,
 ) -> Result<()> {
     match spec.source {
-        InstallSource::WebGit { url, version } => {
-            install_web_git(ctx, houdini, manifest, &url, &version, spec.name.as_deref())
+        InstallSource::Git { url, version } => {
+            install_git(ctx, houdini, manifest, &url, &version, spec.name.as_deref())
         }
         InstallSource::Folder { path } => install_folder(manifest, path),
     }
 }
 
-fn install_web_git(
+fn install_git(
     ctx: &Context,
     houdini: &HoudiniInstallation,
     manifest: &mut Manifest,
@@ -40,7 +40,7 @@ fn install_web_git(
     }
 
     log::info!(
-        "Installing web-git package {url} @ {version} into {}",
+        "Installing git package {url} @ {version} into {}",
         install_dir.display()
     );
 

@@ -22,7 +22,7 @@ pub enum PackageAction {
     Install(InstallArgs),
     /// Remove a package by name or install path.
     Uninstall(UninstallArgs),
-    /// Update a web-git package to a new version.
+    /// Update a git package to a new version.
     Update(UpdateArgs),
     /// List installed packages.
     List,
