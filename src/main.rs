@@ -26,7 +26,10 @@ pub fn main() -> Result<()> {
         }
         Some(Commands::Init) => init(&hou)?,
         Some(Commands::Package(cmd)) => cmd.run(&hou)?,
-        None => {}
+        None => {
+            let houdini = hou.latest_houdini()?;
+            houdini.launch_houdini()?;
+        }
     }
 
     Ok(())

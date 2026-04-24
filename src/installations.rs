@@ -80,18 +80,19 @@ impl HoudiniInstallation {
 
     #[cfg(target_os = "linux")]
     fn user_prefs_dir(version: &Version) -> Result<PathBuf> {
-        let dirs = directories::BaseDirs::new().context("Failed to get user preference directory")?;
+        let dirs =
+            directories::BaseDirs::new().context("Failed to get user preference directory")?;
         let home = dirs.home_dir();
 
-        let houdini_prefs = home
-            .join(format!("houdini{}.{}", version.major, version.minor));
+        let houdini_prefs = home.join(format!("houdini{}.{}", version.major, version.minor));
 
         Ok(houdini_prefs)
     }
 
     #[cfg(target_os = "macos")]
     fn user_prefs_dir(version: &Version) -> Result<PathBuf> {
-        let dirs = directories::BaseDirs::new().context("Failed to get user preference directory")?;
+        let dirs =
+            directories::BaseDirs::new().context("Failed to get user preference directory")?;
         let pref = dirs.preference_dir();
 
         let houdini_prefs = pref
@@ -104,13 +105,31 @@ impl HoudiniInstallation {
     fn env(&self) -> Result<Vec<(OsString, OsString)>> {
         let bin_path = self.hfs.join("bin");
         let sbin_path = self.hfs.join("sbin");
+        let hb = self.hfs.join("bin");
+        let hdso = self.hfs.join("..").join("Libraries");
+        let hh = self.hfs.join("houdini");
+        let hhc = hh.join("config");
+        let ht = hh.join("toolkit");
+        let hsb = hb.join("sbin");
 
         let path_env = env_paths_added("PATH", &[bin_path, sbin_path])?;
 
         Ok(vec![
             ("PATH".into(), path_env),
             ("HFS".into(), self.hfs.clone().into()),
+            ("H".into(), self.hfs.clone().into()),
+            ("HB".into(), hb.into()),
+            ("HDSOP".into(), hdso.into()),
+            ("HH".into(), hh.into()),
+            ("HHC".into(), hhc.into()),
+            ("HT".into(), ht.into()),
+            ("HSB".into(), hsb.into()),
         ])
+    }
+
+    pub fn launch_houdini(&self) -> Result<ExitStatus> {
+        let hou_executable = self.hfs.join("bin").join("houdini");
+        self.run(Command::new(hou_executable))
     }
 
     pub fn run(&self, mut cmd: Command) -> Result<ExitStatus> {
@@ -118,6 +137,6 @@ impl HoudiniInstallation {
             .stdout(std::process::Stdio::inherit())
             .stderr(std::process::Stdio::inherit())
             .status()
-            .context("Failed to start command")
+            .context(format!("Failed to run {:?}", cmd))
     }
 }
