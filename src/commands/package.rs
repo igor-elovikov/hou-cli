@@ -1,12 +1,14 @@
 use crate::hou::Context;
 use crate::installations::HoudiniInstallation;
-use crate::package::manifest::SourceMetadata;
+use crate::package::manifest::{Manifest, SourceMetadata};
 use crate::package::source::InstallSpec;
 use crate::package::update::UpdateTarget;
 use crate::package::{Packages, ScopeKind, SyncReport};
 use crate::project::Project;
 use anyhow::{Result, bail};
 use clap::{Args, Parser, Subcommand};
+use console::style;
+use std::path::Path;
 
 #[derive(Parser)]
 pub struct PackageCmd {
@@ -74,6 +76,10 @@ impl PackageCmd {
         houdini: &HoudiniInstallation,
         project: Option<&Project>,
     ) -> Result<()> {
+        if matches!(self.action, PackageAction::List) {
+            return self.list(ctx, houdini, project);
+        }
+
         let mut pkgs = match (self.global, self.local, project) {
             (true, _, _) => Packages::open_global(ctx, houdini, self.no_patch)?,
             (false, true, None) => bail!("--local requires being inside a project"),
@@ -106,10 +112,7 @@ impl PackageCmd {
                 };
                 pkgs.update(&a.name, target)
             }
-            PackageAction::List => {
-                print_list(&pkgs);
-                Ok(())
-            }
+            PackageAction::List => unreachable!("handled above"),
             PackageAction::Sync => {
                 let report = pkgs.sync()?;
                 print_sync_report(&report);
@@ -117,6 +120,97 @@ impl PackageCmd {
             }
         }
     }
+
+    fn list(
+        self,
+        ctx: &Context,
+        houdini: &HoudiniInstallation,
+        project: Option<&Project>,
+    ) -> Result<()> {
+        if self.local && project.is_none() {
+            bail!("--local requires being inside a project");
+        }
+        let show_global = !self.local;
+        let show_project = !self.global && project.is_some();
+        let mut wrote = false;
+
+        if show_project {
+            let p = project.unwrap();
+            let pkgs = Packages::open_project(houdini, p, self.no_patch)?;
+            print_project_header(p);
+            print_packages(pkgs.list());
+            wrote = true;
+        }
+
+        if show_global {
+            if wrote {
+                println!();
+            }
+            let pkgs = Packages::open_global(ctx, houdini, self.no_patch)?;
+            println!("{}", style("Global").bold());
+            print_packages(pkgs.list());
+        }
+        Ok(())
+    }
+}
+
+fn print_project_header(project: &Project) {
+    let name = project
+        .root
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("?");
+    let label = style("Project").bold();
+    let name_styled = style(name).bold().cyan();
+    if project.isolated() {
+        println!("{label} {name_styled}  {}", style("(isolated)").yellow());
+    } else {
+        println!("{label} {name_styled}");
+    }
+}
+
+fn print_packages(manifest: &Manifest) {
+    if manifest.hou_package_manifest.is_empty() {
+        println!("  {}", style("(no packages)").dim());
+        return;
+    }
+    for (path, entry) in &manifest.hou_package_manifest {
+        let name = display_name(path, entry);
+        let detail = match entry {
+            SourceMetadata::Git(g) => format!("{} @ {}", g.url, g.version),
+            SourceMetadata::Folder(f) => f.path.display().to_string(),
+        };
+        println!(
+            "  {} {}  {}",
+            style("•").dim(),
+            style(&name).bold().cyan(),
+            style(&detail).dim()
+        );
+    }
+}
+
+fn display_name(path: &Path, entry: &SourceMetadata) -> String {
+    let base = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("?");
+    match entry {
+        SourceMetadata::Git(_) => strip_hash_suffix(base).to_string(),
+        SourceMetadata::Folder(_) => base.to_string(),
+    }
+}
+
+fn strip_hash_suffix(s: &str) -> &str {
+    if let Some((name, hash)) = s.rsplit_once('-') {
+        if hash.len() == 8
+            && hash
+                .chars()
+                .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
+        {
+            return name;
+        }
+    }
+    s
 }
 
 fn print_sync_report(report: &SyncReport) {
@@ -128,20 +222,5 @@ fn print_sync_report(report: &SyncReport) {
     }
     for p in &report.skipped {
         println!("  skip    {}", p.display());
-    }
-}
-
-fn print_list(pkgs: &Packages<'_>) {
-    let m = pkgs.list();
-    if m.hou_package_manifest.is_empty() {
-        println!("No packages installed.");
-        return;
-    }
-    for (path, entry) in &m.hou_package_manifest {
-        let (kind, detail) = match entry {
-            SourceMetadata::Git(g) => ("git", format!("{} @ {}", g.url, g.version)),
-            SourceMetadata::Folder(_) => ("folder", String::new()),
-        };
-        println!("{:10} {}  [{}]", kind, path.display(), detail);
     }
 }

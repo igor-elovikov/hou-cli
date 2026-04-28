@@ -203,9 +203,6 @@ impl HoudiniInstallation {
         cmd.envs(self.env(project)?)
             .stdout(std::process::Stdio::inherit())
             .stderr(std::process::Stdio::inherit());
-        if let Some(p) = project {
-            cmd.current_dir(&p.root);
-        }
         cmd.status().context(format!("Failed to run {:?}", cmd))
     }
 }
