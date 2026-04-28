@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use clap::Parser;
 use commands::{Cli, Commands, setup::setup};
 use project::Project;
@@ -19,17 +19,37 @@ pub fn main() -> Result<()> {
 
     let cli = Cli::parse();
     let hou = hou::Context::new()?;
+    let cwd = env::current_dir()?;
 
     let needs_project = matches!(
         cli.command,
         Some(Commands::Run(_) | Commands::Package(_)) | None
     );
-    let discovery_start = project_discovery_start(&cli)?;
+
+    let default_launch = match &cli.command {
+        None => Some(parse_default_launch(&cwd, &cli.houdini_args)),
+        _ => None,
+    };
+
+    let discovery_start = default_launch
+        .as_ref()
+        .map(|d| d.discovery_start.clone())
+        .unwrap_or_else(|| cwd.clone());
+
     let project = if needs_project {
         Project::discover(&discovery_start)?
     } else {
         None
     };
+
+    if let Some(d) = &default_launch {
+        if d.require_project && project.is_none() {
+            bail!(
+                "{} is not inside a Houdini project (no hproject.json found)",
+                d.discovery_start.display()
+            );
+        }
+    }
 
     let version_filter = match (&project, cli.version.as_deref()) {
         (Some(p), user_filter) => {
@@ -57,25 +77,54 @@ pub fn main() -> Result<()> {
         }
         None => {
             let houdini = hou.resolve_houdini(version_filter.as_deref())?;
-            houdini.launch_houdini(&cli.houdini_args, project.as_ref(), cli.attach)?;
+            let forward_args = default_launch
+                .map(|d| d.forward_args)
+                .unwrap_or_default();
+            houdini.launch_houdini(&forward_args, project.as_ref(), cli.attach)?;
         }
     }
 
     Ok(())
 }
 
-fn project_discovery_start(cli: &Cli) -> Result<PathBuf> {
-    let cwd = env::current_dir()?;
-    let file_arg = cli
-        .houdini_args
-        .iter()
-        .find(|a| !a.starts_with('-'))
-        .map(Path::new);
-    Ok(match file_arg {
-        Some(p) => {
-            let abs = if p.is_absolute() { p.to_path_buf() } else { cwd.join(p) };
-            abs.parent().map(Path::to_path_buf).unwrap_or(abs)
+struct DefaultLaunch {
+    discovery_start: PathBuf,
+    forward_args: Vec<String>,
+    require_project: bool,
+}
+
+fn parse_default_launch(cwd: &Path, args: &[String]) -> DefaultLaunch {
+    let Some(first) = args.iter().find(|a| !a.starts_with('-')) else {
+        return DefaultLaunch {
+            discovery_start: cwd.to_path_buf(),
+            forward_args: args.to_vec(),
+            require_project: false,
+        };
+    };
+
+    let p = Path::new(first.as_str());
+    let abs = if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        cwd.join(p)
+    };
+
+    if abs.is_dir() {
+        let forward: Vec<String> = args.iter().filter(|a| a != &first).cloned().collect();
+        DefaultLaunch {
+            discovery_start: abs,
+            forward_args: forward,
+            require_project: true,
         }
-        None => cwd,
-    })
+    } else {
+        let start = abs
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| cwd.to_path_buf());
+        DefaultLaunch {
+            discovery_start: start,
+            forward_args: args.to_vec(),
+            require_project: false,
+        }
+    }
 }
