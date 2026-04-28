@@ -1,6 +1,9 @@
 use crate::installations::{HoudiniInstallation, Installation, InstalledProduct};
 use anyhow::{Context, Result, bail};
 use is_executable::IsExecutable;
+use serde::Deserialize;
+use std::collections::BTreeMap;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -12,7 +15,6 @@ pub struct Installer {
 pub enum InstallerCommand {
     Install,
     Uninstall,
-    List,
 }
 
 impl InstallerCommand {
@@ -20,9 +22,20 @@ impl InstallerCommand {
         match self {
             InstallerCommand::Install => vec!["install".to_owned()],
             InstallerCommand::Uninstall => vec!["uninstall".to_owned()],
-            InstallerCommand::List => vec!["list".to_owned()],
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+struct Overview {
+    installations: BTreeMap<String, OverviewEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OverviewEntry {
+    product: String,
+    version: String,
+    ready: bool,
 }
 
 impl Installer {
@@ -56,30 +69,24 @@ impl Installer {
     }
 
     pub fn products(&self) -> Result<Vec<InstalledProduct>> {
-        let list_result = self.run(InstallerCommand::List)?;
+        let overview_path = Self::overview_path();
 
-        let mut lines = list_result.lines();
-        let header = lines.next().context("Empty installer output")?;
+        let overview_data = fs::read_to_string(&overview_path).with_context(|| {
+            format!("Failed to read overview file at {}", overview_path.display())
+        })?;
 
-        let comp_col = header
-            .find("Component")
-            .context("Missing Component column")?;
-        let ver_col = header.find("Version").context("Missing Version column")?;
-        let ready_col = header.find("Ready?").context("Missing Ready? column")?;
+        let overview: Overview = serde_json::from_str(&overview_data).with_context(|| {
+            format!("Failed to parse overview file at {}", overview_path.display())
+        })?;
 
         let mut products = Vec::new();
 
-        for line in lines {
-            if line.trim().is_empty() {
-                continue;
-            }
+        for (path, entry) in overview.installations {
+            let path = path.as_str();
+            let version = entry.version.as_str();
+            let ready = entry.ready;
 
-            let path = line[..comp_col].trim();
-            let component = line[comp_col..ver_col].trim();
-            let version = line[ver_col..ready_col].trim();
-            let ready = line[ready_col..].trim() == "YES";
-
-            let product = match component {
+            let product = match entry.product.as_str() {
                 "Houdini" => {
                     InstalledProduct::Houdini(HoudiniInstallation::new(path, version, ready)?)
                 }
@@ -93,13 +100,33 @@ impl Installer {
                 "HQueue Client" => {
                     InstalledProduct::HQueueClient(Installation::new(path, version, ready)?)
                 }
-                other => bail!("Unknown component: {other}"),
+                other => bail!("Unknown product: {other}"),
             };
 
             products.push(product);
         }
 
         Ok(products)
+    }
+
+    #[cfg(target_os = "macos")]
+    fn overview_path() -> PathBuf {
+        PathBuf::from("/Library/Application Support/com.sidefx.launcher/overview.json")
+    }
+
+    #[cfg(target_os = "linux")]
+    fn overview_path() -> PathBuf {
+        unimplemented!("Overview path not implemented for linux")
+    }
+
+    #[cfg(target_os = "windows")]
+    fn overview_path() -> PathBuf {
+        unimplemented!("Overview path not implemented for windows")
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+    fn overview_path() -> PathBuf {
+        unimplemented!("Overview path not implemented for this platform")
     }
 
     #[cfg(target_os = "macos")]
