@@ -50,7 +50,7 @@ pub fn main() -> Result<()> {
             cmd.run()?;
         }
         Some(Commands::Setup) => setup(&hou)?,
-        Some(Commands::Init(cmd)) => cmd.run(&hou)?,
+        Some(Commands::Init(cmd)) => cmd.run(&hou, version_filter.as_deref())?,
         Some(Commands::Package(cmd)) => {
             let houdini = hou.resolve_houdini(version_filter.as_deref())?;
             cmd.run(&hou, houdini, project.as_ref())?;

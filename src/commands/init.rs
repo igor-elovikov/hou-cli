@@ -29,7 +29,7 @@ const PACKAGE_LAYOUT: &[&str] = &[
 const HPROJECT_TEMPLATE: &str = "{\n  \"hpath\": \"$HPROJECT\",\n  \"env\": []\n}\n";
 
 impl InitCmd {
-    pub fn run(self, ctx: &Context) -> Result<()> {
+    pub fn run(self, ctx: &Context, version_filter: Option<&str>) -> Result<()> {
         let root = resolve_root(self.name.as_deref())?;
         fs::create_dir_all(&root)
             .with_context(|| format!("Failed to create {}", root.display()))?;
@@ -52,9 +52,12 @@ impl InitCmd {
         fs::create_dir_all(&cache)
             .with_context(|| format!("Failed to create {}", cache.display()))?;
 
-        let houdini_version = match ctx.resolve_houdini(None) {
-            Ok(h) => Some(format!("{}.{}.*", h.version.major, h.version.minor)),
-            Err(_) => {
+        let houdini_version = match ctx.resolve_houdini(version_filter) {
+            Ok(h) => Some(format!("~{}.{}", h.version.major, h.version.minor)),
+            Err(e) => {
+                if version_filter.is_some() {
+                    return Err(e);
+                }
                 log::warn!(
                     "No Houdini installed; leaving houdini_version empty in project manifest"
                 );

@@ -1,7 +1,7 @@
 use crate::installations::{HoudiniInstallation, InstalledProduct};
 use crate::installer::Installer;
 use anyhow::Context as _;
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, anyhow};
 use directories::ProjectDirs;
 use std::fs;
 use std::path::PathBuf;
@@ -56,38 +56,26 @@ impl Context {
         let selected = match filter {
             None => houdinis.max_by_key(|h| &h.version),
             Some(f) => {
-                let parts: Vec<&str> = f.split('.').collect();
-                let (major, minor, patch) = match parts.as_slice() {
-                    [maj, min] => (parse_part(maj, f)?, parse_part(min, f)?, None),
-                    [maj, min, "*"] => (parse_part(maj, f)?, parse_part(min, f)?, None),
-                    [maj, min, pat] => (
-                        parse_part(maj, f)?,
-                        parse_part(min, f)?,
-                        Some(parse_part(pat, f)?),
-                    ),
-                    _ => bail!(
-                        "Invalid version filter '{f}': expected major.minor or major.minor.patch"
-                    ),
-                };
-
+                let normalized = normalize_filter(f);
+                let req = semver::VersionReq::parse(&normalized)
+                    .with_context(|| format!("Invalid version requirement '{f}'"))?;
                 houdinis
-                    .filter(|h| {
-                        h.version.major == major
-                            && h.version.minor == minor
-                            && patch.map_or(true, |p| h.version.patch == p)
-                    })
+                    .filter(|h| req.matches(&h.version))
                     .max_by_key(|h| &h.version)
             }
         };
 
         selected.ok_or_else(|| match filter {
             None => anyhow!("No Houdini installations found"),
-            Some(f) => anyhow!("No Houdini {f} installation found"),
+            Some(f) => anyhow!("No Houdini matching '{f}' installation found"),
         })
     }
 }
 
-fn parse_part(s: &str, full: &str) -> Result<u64> {
-    s.parse::<u64>()
-        .with_context(|| format!("Invalid version filter '{full}'"))
+fn normalize_filter(s: &str) -> String {
+    if s.chars().next().map_or(false, |c| c.is_ascii_digit()) && !s.contains('*') {
+        format!("~{s}")
+    } else {
+        s.to_string()
+    }
 }

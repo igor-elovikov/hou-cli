@@ -16,6 +16,9 @@ pub struct PackageCmd {
     /// Operate on the project manifest (requires being inside a project).
     #[arg(long, global = true)]
     pub local: bool,
+    /// Skip patching package json files after install/update/sync.
+    #[arg(long, global = true)]
+    pub no_patch: bool,
 
     #[command(subcommand)]
     pub action: PackageAction,
@@ -72,11 +75,11 @@ impl PackageCmd {
         project: Option<&Project>,
     ) -> Result<()> {
         let mut pkgs = match (self.global, self.local, project) {
-            (true, _, _) => Packages::open_global(ctx, houdini)?,
+            (true, _, _) => Packages::open_global(ctx, houdini, self.no_patch)?,
             (false, true, None) => bail!("--local requires being inside a project"),
-            (false, true, Some(p)) => Packages::open_project(houdini, p)?,
-            (false, false, Some(p)) => Packages::open_project(houdini, p)?,
-            (false, false, None) => Packages::open_global(ctx, houdini)?,
+            (false, true, Some(p)) => Packages::open_project(houdini, p, self.no_patch)?,
+            (false, false, Some(p)) => Packages::open_project(houdini, p, self.no_patch)?,
+            (false, false, None) => Packages::open_global(ctx, houdini, self.no_patch)?,
         };
 
         log::debug!(

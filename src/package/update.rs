@@ -1,6 +1,7 @@
 use crate::package::checksum::dir_digest;
 use crate::package::git;
 use crate::package::manifest::{GitMeta, Manifest, SourceMetadata};
+use crate::package::patch;
 use crate::package::uninstall::resolve_key;
 use anyhow::{Result, anyhow, bail};
 use semver::Version;
@@ -15,6 +16,7 @@ pub fn update(
     manifest: &mut Manifest,
     key_or_name: &str,
     target: UpdateTarget,
+    no_patch: bool,
 ) -> Result<()> {
     let key = resolve_key(manifest, key_or_name)?;
     let entry = manifest
@@ -51,6 +53,9 @@ pub fn update(
     } else {
         git::clone_at(&git_meta.url, &key, ref_name)?
     };
+    if !no_patch {
+        patch::patch_dir(&key)?;
+    }
     let checksum = dir_digest(&key)?;
 
     manifest.hou_package_manifest.insert(

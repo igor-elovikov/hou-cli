@@ -3,6 +3,7 @@ pub mod checksum;
 pub mod git;
 pub mod install;
 pub mod manifest;
+pub mod patch;
 pub mod source;
 pub mod uninstall;
 pub mod update;
@@ -31,10 +32,15 @@ pub struct Packages<'a> {
     manifest: Manifest,
     manifest_path: PathBuf,
     cache_root: PathBuf,
+    pub no_patch: bool,
 }
 
 impl<'a> Packages<'a> {
-    pub fn open_global(ctx: &'a Context, houdini: &'a HoudiniInstallation) -> Result<Self> {
+    pub fn open_global(
+        ctx: &'a Context,
+        houdini: &'a HoudiniInstallation,
+        no_patch: bool,
+    ) -> Result<Self> {
         let manifest_path = Manifest::path_for(houdini);
         let cache_root = ctx.data_dir.join("packages_cache");
         let manifest = Manifest::load_from(&manifest_path)?;
@@ -44,10 +50,15 @@ impl<'a> Packages<'a> {
             manifest,
             manifest_path,
             cache_root,
+            no_patch,
         })
     }
 
-    pub fn open_project(houdini: &'a HoudiniInstallation, project: &Project) -> Result<Self> {
+    pub fn open_project(
+        houdini: &'a HoudiniInstallation,
+        project: &Project,
+        no_patch: bool,
+    ) -> Result<Self> {
         let manifest_path = project.manifest_path.clone();
         let cache_root = project.packages_dir().join("cache");
         let manifest = Manifest::load_from(&manifest_path)?;
@@ -57,6 +68,7 @@ impl<'a> Packages<'a> {
             manifest,
             manifest_path,
             cache_root,
+            no_patch,
         })
     }
 
@@ -65,7 +77,13 @@ impl<'a> Packages<'a> {
     }
 
     pub fn install(&mut self, spec: InstallSpec) -> Result<()> {
-        install(self.houdini, &mut self.manifest, &self.cache_root, spec)?;
+        install(
+            self.houdini,
+            &mut self.manifest,
+            &self.cache_root,
+            spec,
+            self.no_patch,
+        )?;
         self.save()
     }
 
@@ -75,7 +93,7 @@ impl<'a> Packages<'a> {
     }
 
     pub fn update(&mut self, key_or_name: &str, target: UpdateTarget) -> Result<()> {
-        update(&mut self.manifest, key_or_name, target)?;
+        update(&mut self.manifest, key_or_name, target, self.no_patch)?;
         self.save()
     }
 
@@ -99,7 +117,7 @@ impl<'a> Packages<'a> {
             };
             if !key.exists() {
                 log::warn!("Missing {}, reinstalling", key.display());
-                redownload(&mut self.manifest, &key, &g)?;
+                redownload(&mut self.manifest, &key, &g, self.no_patch)?;
                 report.repaired.push(key);
                 continue;
             }
@@ -109,7 +127,7 @@ impl<'a> Packages<'a> {
                 report.ok.push(key);
             } else {
                 log::warn!("Checksum mismatch at {}, reinstalling", key.display());
-                redownload(&mut self.manifest, &key, &g)?;
+                redownload(&mut self.manifest, &key, &g, self.no_patch)?;
                 report.repaired.push(key);
             }
         }
@@ -118,7 +136,7 @@ impl<'a> Packages<'a> {
     }
 }
 
-fn redownload(manifest: &mut Manifest, key: &Path, git: &GitMeta) -> Result<()> {
+fn redownload(manifest: &mut Manifest, key: &Path, git: &GitMeta, no_patch: bool) -> Result<()> {
     log::info!("Reinstalling {} ({})", key.display(), git.version);
     if key.exists() {
         std::fs::remove_dir_all(key)
@@ -126,6 +144,9 @@ fn redownload(manifest: &mut Manifest, key: &Path, git: &GitMeta) -> Result<()> 
     }
     let ref_name = git::ref_kind_from_version(&git.version).as_ref_name();
     let commit = git::clone_at(&git.url, key, ref_name)?;
+    if !no_patch {
+        patch::patch_dir(key)?;
+    }
     let checksum = dir_digest(key)?;
     manifest.hou_package_manifest.insert(
         key.to_path_buf(),
