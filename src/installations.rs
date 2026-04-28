@@ -162,7 +162,12 @@ impl HoudiniInstallation {
         Ok(env)
     }
 
-    pub fn launch_houdini<I, S>(&self, args: I, project: Option<&Project>) -> Result<ExitStatus>
+    pub fn launch_houdini<I, S>(
+        &self,
+        args: I,
+        project: Option<&Project>,
+        attach: bool,
+    ) -> Result<()>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
@@ -170,7 +175,28 @@ impl HoudiniInstallation {
         let hou_executable = self.hfs.join("bin").join("houdini");
         let mut cmd = Command::new(hou_executable);
         cmd.args(args);
-        self.run(cmd, project)
+        cmd.envs(self.env(project)?);
+        if let Some(p) = project {
+            cmd.current_dir(&p.root);
+        }
+        if attach {
+            cmd.stdout(std::process::Stdio::inherit())
+                .stderr(std::process::Stdio::inherit())
+                .status()
+                .context(format!("Failed to run {:?}", cmd))?;
+        } else {
+            cmd.stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null());
+            #[cfg(unix)]
+            {
+                use std::os::unix::process::CommandExt;
+                cmd.process_group(0);
+            }
+            cmd.spawn()
+                .context(format!("Failed to spawn {:?}", cmd))?;
+        }
+        Ok(())
     }
 
     pub fn run(&self, mut cmd: Command, project: Option<&Project>) -> Result<ExitStatus> {

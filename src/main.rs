@@ -57,7 +57,7 @@ pub fn main() -> Result<()> {
         }
         None => {
             let houdini = hou.resolve_houdini(version_filter.as_deref())?;
-            houdini.launch_houdini(&cli.houdini_args, project.as_ref())?;
+            houdini.launch_houdini(&cli.houdini_args, project.as_ref(), cli.attach)?;
         }
     }
 

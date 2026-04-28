@@ -22,6 +22,9 @@ pub struct Cli {
     pub command: Option<Commands>,
     #[arg(short, long)]
     pub version: Option<String>,
+    /// Keep stdio attached to the terminal and wait for Houdini to exit.
+    #[arg(short, long)]
+    pub attach: bool,
     /// Arguments forwarded to Houdini when no subcommand is given (e.g. a .hip file).
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     pub houdini_args: Vec<String>,
