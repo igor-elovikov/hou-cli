@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use commands::{Cli, Commands, init::init};
+use commands::{Cli, Commands, setup::setup};
 
 mod commands;
 mod hou;
@@ -13,22 +13,26 @@ pub fn main() -> Result<()> {
     env_logger::init();
     log::info!("Initializing...");
 
-    let hou = hou::Context::new()?;
     let cli = Cli::parse();
+    let hou = hou::Context::new()?;
+    let version_filter = cli.version.as_deref();
 
     match cli.command {
         Some(Commands::Run(cmd)) => {
-            let houdini = hou.latest_houdini()?;
+            let houdini = hou.resolve_houdini(version_filter)?;
             cmd.run(houdini)?;
         }
         Some(Commands::Sidefx(cmd)) => {
             cmd.run()?;
         }
-        Some(Commands::Init) => init(&hou)?,
-        Some(Commands::Package(cmd)) => cmd.run(&hou)?,
+        Some(Commands::Setup) => setup(&hou)?,
+        Some(Commands::Package(cmd)) => {
+            let houdini = hou.resolve_houdini(version_filter)?;
+            cmd.run(&hou, houdini)?;
+        }
         None => {
-            let houdini = hou.latest_houdini()?;
-            houdini.launch_houdini()?;
+            let houdini = hou.resolve_houdini(version_filter)?;
+            houdini.launch_houdini(&cli.houdini_args)?;
         }
     }
 

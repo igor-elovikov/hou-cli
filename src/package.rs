@@ -8,14 +8,14 @@ pub mod uninstall;
 pub mod update;
 
 use crate::hou::Context;
-use crate::installations::{HoudiniInstallation, InstalledProduct};
+use crate::installations::HoudiniInstallation;
 use crate::package::checksum::dir_digest;
 use crate::package::install::install;
 use crate::package::manifest::{Manifest, SourceMetadata};
 use crate::package::source::InstallSpec;
 use crate::package::uninstall::uninstall;
 use crate::package::update::{UpdateTarget, update};
-use anyhow::{Context as _, Result, anyhow};
+use anyhow::{Context as _, Result};
 
 pub struct Packages<'a> {
     ctx: &'a Context,
@@ -24,8 +24,7 @@ pub struct Packages<'a> {
 }
 
 impl<'a> Packages<'a> {
-    pub fn open(ctx: &'a Context, houdini_filter: Option<&str>) -> Result<Self> {
-        let houdini = resolve_houdini(ctx, houdini_filter)?;
+    pub fn open(ctx: &'a Context, houdini: &'a HoudiniInstallation) -> Result<Self> {
         let manifest = Manifest::load(houdini)?;
         Ok(Self {
             ctx,
@@ -135,30 +134,6 @@ pub struct CheckReport {
     pub missing: Vec<std::path::PathBuf>,
     pub repaired: Vec<std::path::PathBuf>,
     pub skipped: Vec<std::path::PathBuf>,
-}
-
-fn resolve_houdini<'a>(
-    ctx: &'a Context,
-    filter: Option<&str>,
-) -> Result<&'a HoudiniInstallation> {
-    let houdini = match filter {
-        None => ctx.latest_houdini()?,
-        Some(f) => ctx
-            .products
-            .iter()
-            .filter_map(|p| match p {
-                InstalledProduct::Houdini(h) => Some(h),
-                _ => None,
-            })
-            .find(|h| format!("{}.{}", h.version.major, h.version.minor) == f)
-            .ok_or_else(|| anyhow!("No Houdini {f} installation found"))?,
-    };
-    log::debug!(
-        "Using Houdini {} prefs at {}",
-        houdini.version,
-        houdini.user_prefs_dir.display()
-    );
-    Ok(houdini)
 }
 
 pub use uninstall::resolve_key as resolve_package_key;

@@ -1,4 +1,5 @@
 use crate::hou::Context;
+use crate::installations::HoudiniInstallation;
 use crate::package::manifest::SourceMetadata;
 use crate::package::source::InstallSpec;
 use crate::package::update::UpdateTarget;
@@ -8,10 +9,6 @@ use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser)]
 pub struct PackageCmd {
-    /// Target Houdini major.minor (e.g. "20.5"). Defaults to the latest installed.
-    #[arg(long, global = true)]
-    pub houdini: Option<String>,
-
     #[command(subcommand)]
     pub action: PackageAction,
 }
@@ -67,8 +64,8 @@ pub struct CheckArgs {
 }
 
 impl PackageCmd {
-    pub fn run(self, ctx: &Context) -> Result<()> {
-        let mut pkgs = Packages::open(ctx, self.houdini.as_deref())?;
+    pub fn run(self, ctx: &Context, houdini: &HoudiniInstallation) -> Result<()> {
+        let mut pkgs = Packages::open(ctx, houdini)?;
         match self.action {
             PackageAction::Install(a) => {
                 let spec = InstallSpec::parse(&a.source, a.tag, a.latest, a.name)?;

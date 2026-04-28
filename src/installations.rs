@@ -127,9 +127,15 @@ impl HoudiniInstallation {
         ])
     }
 
-    pub fn launch_houdini(&self) -> Result<ExitStatus> {
+    pub fn launch_houdini<I, S>(&self, args: I) -> Result<ExitStatus>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
         let hou_executable = self.hfs.join("bin").join("houdini");
-        self.run(Command::new(hou_executable))
+        let mut cmd = Command::new(hou_executable);
+        cmd.args(args);
+        self.run(cmd)
     }
 
     pub fn run(&self, mut cmd: Command) -> Result<ExitStatus> {

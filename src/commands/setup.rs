@@ -2,7 +2,7 @@ use crate::sidefx::{HoudiniLauncher, Platform, Product};
 use anyhow::{Context, Result};
 use console::style;
 
-pub fn init(ctx: &crate::hou::Context) -> Result<()> {
+pub fn setup(ctx: &crate::hou::Context) -> Result<()> {
     let client = crate::sidefx::Client::new()?;
     let launcher = Product::HoudiniLauncher(HoudiniLauncher::Default);
 

@@ -1,7 +1,7 @@
 use crate::installations::{HoudiniInstallation, InstalledProduct};
 use crate::installer::Installer;
 use anyhow::Context as _;
-use anyhow::Result;
+use anyhow::{Result, anyhow, bail};
 use directories::ProjectDirs;
 use std::fs;
 use std::path::PathBuf;
@@ -47,14 +47,46 @@ impl Context {
         })
     }
 
-    pub fn latest_houdini(&self) -> Result<&HoudiniInstallation> {
-        self.products
-            .iter()
-            .filter_map(|p| match p {
-                InstalledProduct::Houdini(h) => Some(h),
-                _ => None,
-            })
-            .max_by_key(|h| &h.version)
-            .context("No Houdini installations found")
+    pub fn resolve_houdini(&self, filter: Option<&str>) -> Result<&HoudiniInstallation> {
+        let houdinis = self.products.iter().filter_map(|p| match p {
+            InstalledProduct::Houdini(h) => Some(h),
+            _ => None,
+        });
+
+        let selected = match filter {
+            None => houdinis.max_by_key(|h| &h.version),
+            Some(f) => {
+                let parts: Vec<&str> = f.split('.').collect();
+                let (major, minor, patch) = match parts.as_slice() {
+                    [maj, min] => (parse_part(maj, f)?, parse_part(min, f)?, None),
+                    [maj, min, pat] => (
+                        parse_part(maj, f)?,
+                        parse_part(min, f)?,
+                        Some(parse_part(pat, f)?),
+                    ),
+                    _ => bail!(
+                        "Invalid version filter '{f}': expected major.minor or major.minor.patch"
+                    ),
+                };
+
+                houdinis
+                    .filter(|h| {
+                        h.version.major == major
+                            && h.version.minor == minor
+                            && patch.map_or(true, |p| h.version.patch == p)
+                    })
+                    .max_by_key(|h| &h.version)
+            }
+        };
+
+        selected.ok_or_else(|| match filter {
+            None => anyhow!("No Houdini installations found"),
+            Some(f) => anyhow!("No Houdini {f} installation found"),
+        })
     }
+}
+
+fn parse_part(s: &str, full: &str) -> Result<u64> {
+    s.parse::<u64>()
+        .with_context(|| format!("Invalid version filter '{full}'"))
 }
