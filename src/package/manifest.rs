@@ -14,16 +14,6 @@ pub struct Manifest {
     pub package_path: Vec<PathBuf>,
     #[serde(default)]
     pub hou_package_manifest: BTreeMap<PathBuf, SourceMetadata>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub hou_project_options: Option<HouProjectOptions>,
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct HouProjectOptions {
-    #[serde(default)]
-    pub isolated: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub houdini_version: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

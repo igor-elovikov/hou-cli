@@ -1,8 +1,8 @@
 use crate::hou::Context;
-use crate::package::manifest::{HouProjectOptions, Manifest};
-use crate::project::{PROJECT_MANIFEST, PROJECT_MARKER, PROJECT_PKGS_DIR};
+use crate::project::{HouProjectOptions, PROJECT_MARKER, PROJECT_PKGS_DIR};
 use anyhow::{Context as _, Result, bail};
 use clap::Args;
+use serde_json::json;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -26,8 +26,6 @@ const PACKAGE_LAYOUT: &[&str] = &[
     "python_panels",
 ];
 
-const HPROJECT_TEMPLATE: &str = "{\n  \"hpath\": \"$HPROJECT\",\n  \"env\": []\n}\n";
-
 impl InitCmd {
     pub fn run(self, ctx: &Context, version_filter: Option<&str>) -> Result<()> {
         let root = resolve_root(self.name.as_deref())?;
@@ -39,19 +37,6 @@ impl InitCmd {
             bail!("{} already exists", marker.display());
         }
 
-        fs::write(&marker, HPROJECT_TEMPLATE)
-            .with_context(|| format!("Failed to write {}", marker.display()))?;
-
-        for sub in PACKAGE_LAYOUT {
-            let p = root.join(sub);
-            fs::create_dir_all(&p).with_context(|| format!("Failed to create {}", p.display()))?;
-        }
-
-        let pkgs = root.join(PROJECT_PKGS_DIR);
-        let cache = pkgs.join("cache");
-        fs::create_dir_all(&cache)
-            .with_context(|| format!("Failed to create {}", cache.display()))?;
-
         let houdini_version = match ctx.resolve_houdini(version_filter) {
             Ok(h) => Some(format!("~{}.{}", h.version.major, h.version.minor)),
             Err(e) => {
@@ -59,20 +44,34 @@ impl InitCmd {
                     return Err(e);
                 }
                 log::warn!(
-                    "No Houdini installed; leaving houdini_version empty in project manifest"
+                    "No Houdini installed; leaving houdini_version empty in project options"
                 );
                 None
             }
         };
 
-        let manifest = Manifest {
-            hou_project_options: Some(HouProjectOptions {
-                isolated: false,
-                houdini_version,
-            }),
-            ..Manifest::default()
+        let options = HouProjectOptions {
+            isolated: false,
+            houdini_version,
         };
-        manifest.save_to(&pkgs.join(PROJECT_MANIFEST))?;
+
+        let hproject = json!({
+            "hpath": "$HPROJECT",
+            "env": [],
+            "hou_project_options": options,
+        });
+        let body = serde_json::to_string_pretty(&hproject)?;
+        fs::write(&marker, format!("{body}\n"))
+            .with_context(|| format!("Failed to write {}", marker.display()))?;
+
+        for sub in PACKAGE_LAYOUT {
+            let p = root.join(sub);
+            fs::create_dir_all(&p).with_context(|| format!("Failed to create {}", p.display()))?;
+        }
+
+        let cache = root.join(PROJECT_PKGS_DIR).join("cache");
+        fs::create_dir_all(&cache)
+            .with_context(|| format!("Failed to create {}", cache.display()))?;
 
         println!("Initialized project at {}", root.display());
         Ok(())
