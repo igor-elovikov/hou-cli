@@ -3,12 +3,20 @@ use crate::installations::HoudiniInstallation;
 use crate::package::manifest::SourceMetadata;
 use crate::package::source::InstallSpec;
 use crate::package::update::UpdateTarget;
-use crate::package::{CheckReport, Packages};
+use crate::package::{Packages, ScopeKind, SyncReport};
+use crate::project::Project;
 use anyhow::{Result, bail};
 use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser)]
 pub struct PackageCmd {
+    /// Operate on the global manifest, even when inside a project.
+    #[arg(long, global = true, conflicts_with = "local")]
+    pub global: bool,
+    /// Operate on the project manifest (requires being inside a project).
+    #[arg(long, global = true)]
+    pub local: bool,
+
     #[command(subcommand)]
     pub action: PackageAction,
 }
@@ -23,8 +31,8 @@ pub enum PackageAction {
     Update(UpdateArgs),
     /// List installed packages.
     List,
-    /// Verify package integrity via stored checksums.
-    Check(CheckArgs),
+    /// Re-fetch any git package whose cache dir is missing or has a checksum mismatch.
+    Sync,
 }
 
 #[derive(Args)]
@@ -56,16 +64,30 @@ pub struct UpdateArgs {
     pub latest: bool,
 }
 
-#[derive(Args)]
-pub struct CheckArgs {
-    /// Re-install packages whose checksums don't match.
-    #[arg(long)]
-    pub repair: bool,
-}
-
 impl PackageCmd {
-    pub fn run(self, ctx: &Context, houdini: &HoudiniInstallation) -> Result<()> {
-        let mut pkgs = Packages::open(ctx, houdini)?;
+    pub fn run(
+        self,
+        ctx: &Context,
+        houdini: &HoudiniInstallation,
+        project: Option<&Project>,
+    ) -> Result<()> {
+        let mut pkgs = match (self.global, self.local, project) {
+            (true, _, _) => Packages::open_global(ctx, houdini)?,
+            (false, true, None) => bail!("--local requires being inside a project"),
+            (false, true, Some(p)) => Packages::open_project(houdini, p)?,
+            (false, false, Some(p)) => Packages::open_project(houdini, p)?,
+            (false, false, None) => Packages::open_global(ctx, houdini)?,
+        };
+
+        log::debug!(
+            "Package scope: {} ({})",
+            match pkgs.kind {
+                ScopeKind::Global => "global",
+                ScopeKind::Project => "project",
+            },
+            pkgs.houdini.version
+        );
+
         match self.action {
             PackageAction::Install(a) => {
                 let spec = InstallSpec::parse(&a.source, a.tag, a.latest, a.name)?;
@@ -85,12 +107,24 @@ impl PackageCmd {
                 print_list(&pkgs);
                 Ok(())
             }
-            PackageAction::Check(a) => {
-                let report = pkgs.check(a.repair)?;
-                print_report(&report);
+            PackageAction::Sync => {
+                let report = pkgs.sync()?;
+                print_sync_report(&report);
                 Ok(())
             }
         }
+    }
+}
+
+fn print_sync_report(report: &SyncReport) {
+    for p in &report.ok {
+        println!("  ok      {}", p.display());
+    }
+    for p in &report.repaired {
+        println!("  repair  {}", p.display());
+    }
+    for p in &report.skipped {
+        println!("  skip    {}", p.display());
     }
 }
 
@@ -106,23 +140,5 @@ fn print_list(pkgs: &Packages<'_>) {
             SourceMetadata::Folder(_) => ("folder", String::new()),
         };
         println!("{:10} {}  [{}]", kind, path.display(), detail);
-    }
-}
-
-fn print_report(report: &CheckReport) {
-    for p in &report.ok {
-        println!("  ok      {}", p.display());
-    }
-    for p in &report.mismatched {
-        println!("  bad     {}", p.display());
-    }
-    for p in &report.missing {
-        println!("  missing {}", p.display());
-    }
-    for p in &report.repaired {
-        println!("  repair  {}", p.display());
-    }
-    for p in &report.skipped {
-        println!("  skip    {}", p.display());
     }
 }

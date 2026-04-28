@@ -1,3 +1,4 @@
+use crate::project::Project;
 use anyhow::{Context, Result};
 use itertools::Itertools;
 use semver::Version;
@@ -43,6 +44,19 @@ fn env_paths_added<S: AsRef<OsStr>>(env_name: S, paths: &[PathBuf]) -> Result<Os
         .collect::<Vec<_>>();
 
     env::join_paths(env_paths).context("Failed to join PATH environment variable")
+}
+
+fn env_paths_prepended<S: AsRef<OsStr>>(env_name: S, paths: &[PathBuf]) -> Result<OsString> {
+    let path_env = env::var_os(env_name).unwrap_or(OsString::new());
+
+    let env_paths = paths
+        .iter()
+        .cloned()
+        .chain(env::split_paths(&path_env))
+        .unique()
+        .collect::<Vec<_>>();
+
+    env::join_paths(env_paths).context("Failed to join env path variable")
 }
 
 impl Installation {
@@ -102,7 +116,7 @@ impl HoudiniInstallation {
         Ok(houdini_prefs)
     }
 
-    fn env(&self) -> Result<Vec<(OsString, OsString)>> {
+    fn env(&self, project: Option<&Project>) -> Result<Vec<(OsString, OsString)>> {
         let bin_path = self.hfs.join("bin");
         let sbin_path = self.hfs.join("sbin");
         let hb = self.hfs.join("bin");
@@ -114,7 +128,7 @@ impl HoudiniInstallation {
 
         let path_env = env_paths_added("PATH", &[bin_path, sbin_path])?;
 
-        Ok(vec![
+        let mut env: Vec<(OsString, OsString)> = vec![
             ("PATH".into(), path_env),
             ("HFS".into(), self.hfs.clone().into()),
             ("H".into(), self.hfs.clone().into()),
@@ -124,10 +138,31 @@ impl HoudiniInstallation {
             ("HHC".into(), hhc.into()),
             ("HT".into(), ht.into()),
             ("HSB".into(), hsb.into()),
-        ])
+        ];
+
+        let global_packages_enabled = match project {
+            Some(p) => {
+                env.push(("HPROJECT".into(), p.root.clone().into()));
+                env.push((
+                    "HOUDINI_PACKAGE_DIR".into(),
+                    env_paths_prepended(
+                        "HOUDINI_PACKAGE_DIR",
+                        &[p.root.clone(), p.packages_dir()],
+                    )?,
+                ));
+                !p.isolated()
+            }
+            None => true,
+        };
+        env.push((
+            "HOU_GLOBAL_PACKAGES_ENABLED".into(),
+            if global_packages_enabled { "1" } else { "0" }.into(),
+        ));
+
+        Ok(env)
     }
 
-    pub fn launch_houdini<I, S>(&self, args: I) -> Result<ExitStatus>
+    pub fn launch_houdini<I, S>(&self, args: I, project: Option<&Project>) -> Result<ExitStatus>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
@@ -135,14 +170,16 @@ impl HoudiniInstallation {
         let hou_executable = self.hfs.join("bin").join("houdini");
         let mut cmd = Command::new(hou_executable);
         cmd.args(args);
-        self.run(cmd)
+        self.run(cmd, project)
     }
 
-    pub fn run(&self, mut cmd: Command) -> Result<ExitStatus> {
-        cmd.envs(self.env()?)
+    pub fn run(&self, mut cmd: Command, project: Option<&Project>) -> Result<ExitStatus> {
+        cmd.envs(self.env(project)?)
             .stdout(std::process::Stdio::inherit())
-            .stderr(std::process::Stdio::inherit())
-            .status()
-            .context(format!("Failed to run {:?}", cmd))
+            .stderr(std::process::Stdio::inherit());
+        if let Some(p) = project {
+            cmd.current_dir(&p.root);
+        }
+        cmd.status().context(format!("Failed to run {:?}", cmd))
     }
 }

@@ -1,5 +1,3 @@
-use crate::hou::Context;
-use crate::installations::HoudiniInstallation;
 use crate::package::checksum::dir_digest;
 use crate::package::git;
 use crate::package::manifest::{GitMeta, Manifest, SourceMetadata};
@@ -14,8 +12,6 @@ pub enum UpdateTarget {
 }
 
 pub fn update(
-    _ctx: &Context,
-    _houdini: &HoudiniInstallation,
     manifest: &mut Manifest,
     key_or_name: &str,
     target: UpdateTarget,

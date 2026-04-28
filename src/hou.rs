@@ -59,6 +59,7 @@ impl Context {
                 let parts: Vec<&str> = f.split('.').collect();
                 let (major, minor, patch) = match parts.as_slice() {
                     [maj, min] => (parse_part(maj, f)?, parse_part(min, f)?, None),
+                    [maj, min, "*"] => (parse_part(maj, f)?, parse_part(min, f)?, None),
                     [maj, min, pat] => (
                         parse_part(maj, f)?,
                         parse_part(min, f)?,

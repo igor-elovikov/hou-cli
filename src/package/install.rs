@@ -1,4 +1,3 @@
-use crate::hou::Context;
 use crate::installations::HoudiniInstallation;
 use crate::package::cache::install_dir_for;
 use crate::package::checksum::dir_digest;
@@ -6,31 +5,36 @@ use crate::package::git;
 use crate::package::manifest::{FolderMeta, GitMeta, Manifest, SourceMetadata};
 use crate::package::source::{InstallSource, InstallSpec};
 use anyhow::{Result, bail};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub fn install(
-    ctx: &Context,
     houdini: &HoudiniInstallation,
     manifest: &mut Manifest,
+    cache_root: &Path,
     spec: InstallSpec,
 ) -> Result<()> {
     match spec.source {
-        InstallSource::Git { url, version } => {
-            install_git(ctx, houdini, manifest, &url, &version, spec.name.as_deref())
-        }
+        InstallSource::Git { url, version } => install_git(
+            houdini,
+            manifest,
+            cache_root,
+            &url,
+            &version,
+            spec.name.as_deref(),
+        ),
         InstallSource::Folder { path } => install_folder(manifest, path),
     }
 }
 
 fn install_git(
-    ctx: &Context,
     houdini: &HoudiniInstallation,
     manifest: &mut Manifest,
+    cache_root: &Path,
     url: &str,
     version: &str,
     name_hint: Option<&str>,
 ) -> Result<()> {
-    let install_dir = install_dir_for(ctx, &houdini.version, url, name_hint);
+    let install_dir = install_dir_for(cache_root, &houdini.version, url, name_hint);
 
     if manifest.hou_package_manifest.contains_key(&install_dir) {
         bail!(

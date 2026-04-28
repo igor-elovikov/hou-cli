@@ -14,6 +14,16 @@ pub struct Manifest {
     pub package_path: Vec<PathBuf>,
     #[serde(default)]
     pub hou_package_manifest: BTreeMap<PathBuf, SourceMetadata>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hou_project_options: Option<HouProjectOptions>,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct HouProjectOptions {
+    #[serde(default)]
+    pub isolated: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub houdini_version: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -43,25 +53,31 @@ impl Manifest {
     }
 
     pub fn load(houdini: &HoudiniInstallation) -> Result<Self> {
-        let path = Self::path_for(houdini);
+        Self::load_from(&Self::path_for(houdini))
+    }
+
+    pub fn load_from(path: &Path) -> Result<Self> {
         if !path.exists() {
             log::debug!("Manifest missing at {}, using empty default", path.display());
             return Ok(Self::default());
         }
         log::debug!("Loading manifest from {}", path.display());
-        let text = fs::read_to_string(&path)
+        let text = fs::read_to_string(path)
             .with_context(|| format!("Failed to read manifest at {}", path.display()))?;
         serde_json::from_str(&text)
             .with_context(|| format!("Failed to parse manifest at {}", path.display()))
     }
 
     pub fn save(&self, houdini: &HoudiniInstallation) -> Result<()> {
-        let path = Self::path_for(houdini);
+        self.save_to(&Self::path_for(houdini))
+    }
+
+    pub fn save_to(&self, path: &Path) -> Result<()> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)
                 .with_context(|| format!("Failed to create {}", parent.display()))?;
         }
-        write_atomic(&path, &serde_json::to_vec_pretty(self)?)?;
+        write_atomic(path, &serde_json::to_vec_pretty(self)?)?;
         log::debug!("Saved manifest to {}", path.display());
         Ok(())
     }
