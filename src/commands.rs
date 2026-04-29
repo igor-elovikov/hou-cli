@@ -1,6 +1,7 @@
 pub use clap::{Parser, Subcommand};
 
 pub mod init;
+pub mod list;
 mod package;
 mod run;
 mod sidefx;
@@ -13,6 +14,8 @@ pub enum Commands {
     Run(run::Run),
     Sidefx(sidefx::SideFX),
     Package(package::PackageCmd),
+    /// List installed Houdini products.
+    List(list::ListCmd),
 }
 
 #[derive(Parser)]

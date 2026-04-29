@@ -79,6 +79,7 @@ pub fn main() -> Result<()> {
             let houdini = hou.resolve_houdini(version_filter.as_deref())?;
             cmd.run(&hou, houdini, project.as_ref())?;
         }
+        Some(Commands::List(cmd)) => cmd.run(&hou)?,
         None => {
             let houdini = hou.resolve_houdini(version_filter.as_deref())?;
             let forward_args = default_launch
