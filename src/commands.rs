@@ -25,7 +25,9 @@ pub struct Cli {
     /// Keep stdio attached to the terminal and wait for Houdini to exit.
     #[arg(short, long)]
     pub attach: bool,
-    /// Arguments forwarded to Houdini when no subcommand is given (e.g. a .hip file).
-    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+    /// Optional file (e.g. a .hip file) or project directory to open.
+    pub file: Option<String>,
+    /// Arguments forwarded to Houdini; everything after `--`.
+    #[arg(last = true)]
     pub houdini_args: Vec<String>,
 }

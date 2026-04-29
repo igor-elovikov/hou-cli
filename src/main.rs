@@ -27,7 +27,11 @@ pub fn main() -> Result<()> {
     );
 
     let default_launch = match &cli.command {
-        None => Some(parse_default_launch(&cwd, &cli.houdini_args)),
+        None => Some(parse_default_launch(
+            &cwd,
+            cli.file.as_deref(),
+            &cli.houdini_args,
+        )),
         _ => None,
     };
 
@@ -93,16 +97,20 @@ struct DefaultLaunch {
     require_project: bool,
 }
 
-fn parse_default_launch(cwd: &Path, args: &[String]) -> DefaultLaunch {
-    let Some(first) = args.iter().find(|a| !a.starts_with('-')) else {
+fn parse_default_launch(
+    cwd: &Path,
+    file: Option<&str>,
+    houdini_args: &[String],
+) -> DefaultLaunch {
+    let Some(first) = file else {
         return DefaultLaunch {
             discovery_start: cwd.to_path_buf(),
-            forward_args: args.to_vec(),
+            forward_args: houdini_args.to_vec(),
             require_project: false,
         };
     };
 
-    let p = Path::new(first.as_str());
+    let p = Path::new(first);
     let abs = if p.is_absolute() {
         p.to_path_buf()
     } else {
@@ -110,10 +118,9 @@ fn parse_default_launch(cwd: &Path, args: &[String]) -> DefaultLaunch {
     };
 
     if abs.is_dir() {
-        let forward: Vec<String> = args.iter().filter(|a| a != &first).cloned().collect();
         DefaultLaunch {
             discovery_start: abs,
-            forward_args: forward,
+            forward_args: houdini_args.to_vec(),
             require_project: true,
         }
     } else {
@@ -121,9 +128,12 @@ fn parse_default_launch(cwd: &Path, args: &[String]) -> DefaultLaunch {
             .parent()
             .map(Path::to_path_buf)
             .unwrap_or_else(|| cwd.to_path_buf());
+        let mut forward = Vec::with_capacity(1 + houdini_args.len());
+        forward.push(first.to_string());
+        forward.extend(houdini_args.iter().cloned());
         DefaultLaunch {
             discovery_start: start,
-            forward_args: args.to_vec(),
+            forward_args: forward,
             require_project: false,
         }
     }
