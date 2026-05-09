@@ -1,3 +1,5 @@
+use crate::hou::Context;
+use crate::settings::Settings;
 use crate::sidefx::{Platform, Product};
 use anyhow::Result;
 use clap::{Args, Subcommand};
@@ -26,8 +28,10 @@ pub struct SideFX {
 }
 
 impl SideFX {
-    pub fn run(self) -> Result<()> {
-        let client = crate::sidefx::Client::new()?;
+    pub fn run(self, ctx: &Context) -> Result<()> {
+        let settings = Settings::load(&ctx.config_dir)?;
+        let (client_id, client_secret) = settings.require_oauth()?;
+        let client = crate::sidefx::Client::new(&client_id, &client_secret)?;
 
         match self.command {
             SideFXCommand::Builds(args) => {

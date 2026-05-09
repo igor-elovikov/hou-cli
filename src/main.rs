@@ -12,6 +12,7 @@ mod installations;
 mod installer;
 pub mod package;
 mod project;
+mod settings;
 mod sidefx;
 
 pub fn main() -> Result<()> {
@@ -78,7 +79,7 @@ pub fn main() -> Result<()> {
             cmd.run(houdini, project.as_ref())?;
         }
         Some(Commands::Sidefx(cmd)) => {
-            cmd.run()?;
+            cmd.run(&hou)?;
         }
         Some(Commands::Setup) => setup(&hou)?,
         Some(Commands::Init(cmd)) => cmd.run(&hou, version_filter.as_deref())?,
@@ -87,6 +88,9 @@ pub fn main() -> Result<()> {
             cmd.run(&hou, houdini, project.as_ref())?;
         }
         Some(Commands::List(cmd)) => cmd.run(&hou)?,
+        Some(Commands::Login(cmd)) => cmd.run(&hou)?,
+        Some(Commands::Logout(cmd)) => cmd.run(&hou)?,
+        Some(Commands::Eula(cmd)) => cmd.run(&hou)?,
         None => {
             let houdini = hou.resolve_houdini(version_filter.as_deref())?;
             let forward_args = default_launch

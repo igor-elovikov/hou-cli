@@ -1,9 +1,12 @@
+use crate::settings::Settings;
 use crate::sidefx::{HoudiniLauncher, Platform, Product};
 use anyhow::{Context, Result};
 use console::style;
 
 pub fn setup(ctx: &crate::hou::Context) -> Result<()> {
-    let client = crate::sidefx::Client::new()?;
+    let settings = Settings::load(&ctx.config_dir)?;
+    let (client_id, client_secret) = settings.require_oauth()?;
+    let client = crate::sidefx::Client::new(&client_id, &client_secret)?;
     let launcher = Product::HoudiniLauncher(HoudiniLauncher::Default);
 
     let host_platform = Platform::host()?;

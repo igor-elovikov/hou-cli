@@ -14,9 +14,6 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use ureq::Agent;
 
-const CLIENT_ID: &str = "j6VpXfB18GrkBsvO1SPrr5Z2wxwjjbmS9QiuVGFN";
-const CLIENT_SECRET: &str = "ymW6Zeenh5j2xCPtxB4RcDpMXkEDqAF9d0rEJETExiCyx1AqrKAaLFoZqUrXQGETibHtGzQMtGJ0CXKKocTd8bt43C7McEGQpKoJmdD62xg494Reo1HkjiV1btPg7C8S";
-
 const TOKEN_URL: &str = "https://www.sidefx.com/oauth2/application_token";
 const API_URL: &str = "https://www.sidefx.com/api/";
 
@@ -31,9 +28,9 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new() -> Result<Self> {
+    pub fn new(client_id: &str, client_secret: &str) -> Result<Self> {
         let agent = Agent::new_with_defaults();
-        let token = fetch_token(&agent)?;
+        let token = fetch_token(&agent, client_id, client_secret)?;
         Ok(Self { agent, token })
     }
 
@@ -224,9 +221,9 @@ fn install_launcher(dmg: &Path, dest: &Path) -> Result<PathBuf> {
     Ok(app_dst)
 }
 
-fn fetch_token(agent: &Agent) -> Result<String> {
+fn fetch_token(agent: &Agent, client_id: &str, client_secret: &str) -> Result<String> {
     use base64::{Engine, engine::general_purpose::STANDARD};
-    let creds = STANDARD.encode(format!("{CLIENT_ID}:{CLIENT_SECRET}"));
+    let creds = STANDARD.encode(format!("{client_id}:{client_secret}"));
 
     let resp: TokenResponse = agent
         .post(TOKEN_URL)

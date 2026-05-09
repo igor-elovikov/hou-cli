@@ -1,7 +1,10 @@
 pub use clap::{Parser, Subcommand};
 
+pub mod eula;
 pub mod init;
 pub mod list;
+pub mod login;
+pub mod logout;
 mod package;
 mod run;
 mod sidefx;
@@ -16,6 +19,12 @@ pub enum Commands {
     Package(package::PackageCmd),
     /// List installed Houdini products.
     List(list::ListCmd),
+    /// Store SideFX credentials in the config-dir INI file.
+    Login(login::LoginCmd),
+    /// Remove the SideFX credentials/EULA settings file.
+    Logout(logout::LogoutCmd),
+    /// Manage accepted SideFX EULA dates.
+    Eula(eula::EulaCmd),
 }
 
 #[derive(Parser)]
