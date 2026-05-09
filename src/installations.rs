@@ -30,11 +30,6 @@ pub enum InstalledProduct {
     HQueueServer(Installation),
     HQueueClient(Installation),
 }
-
-pub fn discover_installations() -> Result<Vec<InstalledProduct>> {
-    todo!("products discovering")
-}
-
 fn env_paths_added<S: AsRef<OsStr>>(env_name: S, paths: &[PathBuf]) -> Result<OsString> {
     let path_env = env::var_os(env_name).unwrap_or(OsString::new());
 
@@ -193,8 +188,7 @@ impl HoudiniInstallation {
                 use std::os::unix::process::CommandExt;
                 cmd.process_group(0);
             }
-            cmd.spawn()
-                .context(format!("Failed to spawn {:?}", cmd))?;
+            cmd.spawn().context(format!("Failed to spawn {:?}", cmd))?;
         }
         Ok(())
     }
@@ -204,5 +198,9 @@ impl HoudiniInstallation {
             .stdout(std::process::Stdio::inherit())
             .stderr(std::process::Stdio::inherit());
         cmd.status().context(format!("Failed to run {:?}", cmd))
+    }
+
+    pub fn ready(&self) -> bool {
+        self.ready
     }
 }

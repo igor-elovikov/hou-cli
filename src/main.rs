@@ -1,6 +1,7 @@
 use anyhow::{Result, bail};
 use clap::Parser;
 use commands::{Cli, Commands, setup::setup};
+use console::style;
 use project::Project;
 use std::env;
 use std::path::{Path, PathBuf};
@@ -57,8 +58,14 @@ pub fn main() -> Result<()> {
 
     let version_filter = match (&project, cli.version.as_deref()) {
         (Some(p), user_filter) => {
-            if user_filter.is_some() {
-                log::warn!("--version is ignored inside a project; using project's houdini_version");
+            if let Some(v) = user_filter {
+                let project_version = p.houdini_version().unwrap_or("(unset)");
+                eprintln!(
+                    "{} --version={} is ignored inside a project; using project's houdini_version={}",
+                    style("warning:").yellow().bold(),
+                    style(v).yellow(),
+                    style(project_version).yellow(),
+                );
             }
             p.houdini_version().map(|s| s.to_string())
         }

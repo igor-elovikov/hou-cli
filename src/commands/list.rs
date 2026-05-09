@@ -16,6 +16,7 @@ pub struct ListCmd {
 struct ProductEntry {
     name: &'static str,
     version: String,
+    ready: bool,
 }
 
 impl ListCmd {
@@ -34,11 +35,18 @@ impl ListCmd {
         }
 
         for e in &entries {
+            let ready = if e.ready {
+                style("Yes").green()
+            } else {
+                style("No").red()
+            };
             println!(
-                "  {} {}  {}",
+                "  {} {}  {}  {}{}",
                 style("•").dim(),
                 style(e.name).bold().cyan(),
-                &e.version
+                &e.version,
+                style("ready:").dim(),
+                ready,
             );
         }
         Ok(())
@@ -50,22 +58,27 @@ fn product_entry(p: &InstalledProduct) -> ProductEntry {
         InstalledProduct::Houdini(h) => ProductEntry {
             name: "Houdini",
             version: h.version.to_string(),
+            ready: h.ready(),
         },
         InstalledProduct::HServer(i) => ProductEntry {
             name: "HServer",
             version: i.version.to_string(),
+            ready: i.ready,
         },
         InstalledProduct::LicenseServer(i) => ProductEntry {
             name: "License Server",
             version: i.version.to_string(),
+            ready: i.ready,
         },
         InstalledProduct::HQueueServer(i) => ProductEntry {
             name: "HQueue Server",
             version: i.version.to_string(),
+            ready: i.ready,
         },
         InstalledProduct::HQueueClient(i) => ProductEntry {
             name: "HQueue Client",
             version: i.version.to_string(),
+            ready: i.ready,
         },
     }
 }
