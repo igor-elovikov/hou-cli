@@ -8,10 +8,7 @@ const SKIP_ENV: &str = "HOUDINI_PACKAGE_PATH";
 
 pub fn patch_dir(install_dir: &Path) -> Result<usize> {
     let mut count = 0;
-    for entry in WalkDir::new(install_dir)
-        .into_iter()
-        .filter_map(Result::ok)
-    {
+    for entry in WalkDir::new(install_dir).into_iter().filter_map(Result::ok) {
         if !entry.file_type().is_file() {
             continue;
         }
@@ -31,8 +28,8 @@ pub fn patch_dir(install_dir: &Path) -> Result<usize> {
 }
 
 fn try_patch_file(file: &Path, install_dir: &Path) -> Result<bool> {
-    let text = fs::read_to_string(file)
-        .with_context(|| format!("Failed to read {}", file.display()))?;
+    let text =
+        fs::read_to_string(file).with_context(|| format!("Failed to read {}", file.display()))?;
     let mut json: Value = match serde_json::from_str(&text) {
         Ok(v) => v,
         Err(_) => return Ok(false),
@@ -111,10 +108,10 @@ fn patch_env_entry(obj: &mut Map<String, Value>, var: &str, install_path: &str) 
         }
         match value {
             Value::Object(m) => {
-                m.insert("value".into(), Value::String(install_path.into()));
+                m.insert("value".to_string(), Value::String(install_path.to_string()));
             }
             _ => {
-                *value = Value::String(install_path.into());
+                *value = Value::String(install_path.to_string());
             }
         }
         return true;
@@ -127,13 +124,13 @@ fn patch_path_field(obj: &mut Map<String, Value>, key: &str, install_path: &str)
     match entry {
         Value::Array(arr) => {
             if let Some(first) = arr.get_mut(0) {
-                *first = Value::String(install_path.into());
+                *first = Value::String(install_path.to_string());
             } else {
-                arr.push(Value::String(install_path.into()));
+                arr.push(Value::String(install_path.to_string()));
             }
         }
         _ => {
-            *entry = Value::String(install_path.into());
+            *entry = Value::String(install_path.to_string());
         }
     }
 }

@@ -14,7 +14,7 @@ impl BuildSpec {
     fn as_json(&self) -> Value {
         match self {
             BuildSpec::Number(n) => Value::String(n.to_string()),
-            BuildSpec::Production => Value::String("production".into()),
+            BuildSpec::Production => Value::String("production".to_string()),
         }
     }
 }

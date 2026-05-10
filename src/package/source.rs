@@ -23,7 +23,7 @@ impl InstallSpec {
         }
 
         if looks_like_url(raw) {
-            let version = tag.unwrap_or_else(|| "latest".into());
+            let version = tag.unwrap_or_else(|| "latest".to_string());
             return Ok(Self {
                 source: InstallSource::Git {
                     url: raw.to_string(),
@@ -39,7 +39,10 @@ impl InstallSpec {
             .with_context(|| format!("Source path not found: {}", path.display()))?;
 
         if !path.is_dir() {
-            return Err(anyhow!("Source must be a URL or a directory: {}", path.display()));
+            return Err(anyhow!(
+                "Source must be a URL or a directory: {}",
+                path.display()
+            ));
         }
 
         if tag.is_some() || latest {
@@ -64,7 +67,11 @@ pub fn looks_like_url(s: &str) -> bool {
 fn expand_tilde(raw: &str) -> String {
     if let Some(stripped) = raw.strip_prefix("~/") {
         if let Some(home) = directories::BaseDirs::new() {
-            return home.home_dir().join(stripped).to_string_lossy().into_owned();
+            return home
+                .home_dir()
+                .join(stripped)
+                .to_string_lossy()
+                .into_owned();
         }
     }
     raw.to_string()

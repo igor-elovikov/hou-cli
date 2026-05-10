@@ -86,15 +86,15 @@ impl<'a> BuildsQuery<'a> {
 
     pub fn send(self) -> Result<Vec<Build>> {
         let mut kwargs = serde_json::Map::new();
-        kwargs.insert("product".into(), self.product.as_api_str().into());
+        kwargs.insert("product".to_string(), self.product.as_api_str().into());
         if let Some(v) = self.version {
-            kwargs.insert("version".into(), v.into());
+            kwargs.insert("version".to_string(), v.into());
         }
         if let Some(p) = self.platform {
-            kwargs.insert("platform".into(), p.as_api_str().into());
+            kwargs.insert("platform".to_string(), p.as_api_str().into());
         }
         if let Some(op) = self.only_production {
-            kwargs.insert("only_production".into(), op.into());
+            kwargs.insert("only_production".to_string(), op.into());
         }
 
         let result = self.client.call(

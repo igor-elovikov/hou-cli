@@ -10,6 +10,7 @@ use std::process::Command;
 #[derive(Debug)]
 pub struct Installer {
     installer_exe: PathBuf,
+    installer_path: PathBuf,
 }
 
 pub enum InstallerCommand {
@@ -46,6 +47,10 @@ impl Installer {
             if path.is_executable() {
                 return Ok(Self {
                     installer_exe: path.clone(),
+                    installer_path: path
+                        .parent()
+                        .context("No parent path for installer")?
+                        .to_path_buf(),
                 });
             }
         }
@@ -72,11 +77,17 @@ impl Installer {
         let overview_path = Self::overview_path();
 
         let overview_data = fs::read_to_string(&overview_path).with_context(|| {
-            format!("Failed to read overview file at {}", overview_path.display())
+            format!(
+                "Failed to read overview file at {}",
+                overview_path.display()
+            )
         })?;
 
         let overview: Overview = serde_json::from_str(&overview_data).with_context(|| {
-            format!("Failed to parse overview file at {}", overview_path.display())
+            format!(
+                "Failed to parse overview file at {}",
+                overview_path.display()
+            )
         })?;
 
         let mut products = Vec::new();
