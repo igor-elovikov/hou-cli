@@ -29,10 +29,10 @@ pub enum ScopeKind {
 pub struct Packages<'a> {
     pub kind: ScopeKind,
     pub houdini: &'a HoudiniInstallation,
+    pub no_patch: bool,
     manifest: Manifest,
     manifest_path: PathBuf,
     cache_root: PathBuf,
-    pub no_patch: bool,
 }
 
 impl<'a> Packages<'a> {

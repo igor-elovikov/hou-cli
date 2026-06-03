@@ -10,7 +10,6 @@ use std::process::Command;
 #[derive(Debug)]
 pub struct Installer {
     installer_exe: PathBuf,
-    installer_path: PathBuf,
 }
 
 pub enum InstallerCommand {
@@ -47,10 +46,6 @@ impl Installer {
             if path.is_executable() {
                 return Ok(Self {
                     installer_exe: path.clone(),
-                    installer_path: path
-                        .parent()
-                        .context("No parent path for installer")?
-                        .to_path_buf(),
                 });
             }
         }
