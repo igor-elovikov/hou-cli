@@ -19,7 +19,7 @@ pub enum Commands {
     Package(package::PackageCmd),
     /// List installed Houdini products.
     List(list::ListCmd),
-    /// Store SideFX credentials in the config-dir INI file.
+    /// Store SideFX credentials in the config-dir credentials.toml.
     Login(login::LoginCmd),
     /// Remove the SideFX credentials/EULA settings file.
     Logout(logout::LogoutCmd),
