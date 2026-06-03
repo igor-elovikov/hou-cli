@@ -17,6 +17,8 @@ pub struct Installation {
 #[derive(Debug)]
 pub struct HoudiniInstallation {
     hfs: PathBuf,
+    /// Install root as registered by the launcher.
+    pub path: PathBuf,
     pub version: Version,
     pub user_prefs_dir: PathBuf,
     ready: bool,
@@ -81,6 +83,7 @@ impl HoudiniInstallation {
 
         Ok(HoudiniInstallation {
             hfs,
+            path,
             version,
             user_prefs_dir,
             ready,

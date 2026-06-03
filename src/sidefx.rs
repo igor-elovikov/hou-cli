@@ -6,7 +6,7 @@ use anyhow::{Context, Result, anyhow, bail};
 pub use build::BuildsQuery;
 pub use download::{BuildDownload, BuildDownloadQuery, BuildSpec};
 use indicatif::{ProgressBar, ProgressStyle};
-pub use products::{HoudiniLauncher, Platform, Product, Release, Status};
+pub use products::{Houdini, HoudiniLauncher, Platform, Product, Release, Status};
 use serde::Deserialize;
 use serde_json::Value;
 use std::io::Read;

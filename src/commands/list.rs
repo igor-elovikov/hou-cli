@@ -19,15 +19,35 @@ struct ProductEntry {
     ready: bool,
 }
 
+#[derive(Serialize)]
+struct ListOutput {
+    launcher: String,
+    products: Vec<ProductEntry>,
+}
+
 impl ListCmd {
     pub fn run(self, ctx: &Context) -> Result<()> {
+        let launcher = ctx
+            .installer
+            .version()
+            .map(|v| v.to_string())
+            .unwrap_or_else(|_| "unknown".to_string());
         let entries: Vec<ProductEntry> = ctx.products.iter().map(product_entry).collect();
 
         if self.json {
-            println!("{}", serde_json::to_string_pretty(&entries)?);
+            let output = ListOutput {
+                launcher,
+                products: entries,
+            };
+            println!("{}", serde_json::to_string_pretty(&output)?);
             return Ok(());
         }
 
+        println!(
+            "{} {}",
+            style("Launcher").bold().cyan(),
+            style(&launcher).bold(),
+        );
         println!("{}", style("Installed Products").bold());
         if entries.is_empty() {
             println!("  {}", style("(none)").dim());

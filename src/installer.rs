@@ -12,20 +12,6 @@ pub struct Installer {
     installer_exe: PathBuf,
 }
 
-pub enum InstallerCommand {
-    Install,
-    Uninstall,
-}
-
-impl InstallerCommand {
-    pub fn args(&self) -> Vec<String> {
-        match self {
-            InstallerCommand::Install => vec!["install".to_owned()],
-            InstallerCommand::Uninstall => vec!["uninstall".to_owned()],
-        }
-    }
-}
-
 #[derive(Debug, Deserialize)]
 struct Overview {
     installations: BTreeMap<String, OverviewEntry>,
@@ -60,12 +46,106 @@ impl Installer {
         );
     }
 
-    pub fn run(&self, command: InstallerCommand) -> Result<String> {
-        let mut cmd = Command::new(self.installer_exe.clone().into_os_string());
+    /// Installs a Houdini build with stdio inherited from the terminal.
+    /// Elevates with sudo on unix; the installer writes to system locations.
+    /// EULA dates go on the command line; the ini accept_eula key is ignored
+    /// by current installers despite being documented.
+    /// On Apple Silicon the M1 build option is mandatory: the x86_64-only
+    /// installer infers Intel under Rosetta (the GUI checkbox does the same).
+    pub fn install_houdini(&self, version: &str, settings_file: &Path, eulas: &[String]) -> Result<()> {
+        let mut cmd = self.elevated_command();
+        cmd.arg("install")
+            .args(["--product", "Houdini", "--version", version])
+            .arg("--settings-file")
+            .arg(settings_file);
+        if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+            cmd.args(["--build-option", "M1"]);
+        }
+        for date in eulas {
+            cmd.arg("--accept-EULA").arg(date);
+        }
+        let status = cmd
+            .status()
+            .context("failed to run houdini_installer")?;
+        if !status.success() {
+            bail!("houdini_installer failed with status {status}");
+        }
+        Ok(())
+    }
 
-        let stdout = cmd.args(&command.args()).output()?.stdout;
+    /// Returns the launcher version reported by houdini_installer.
+    pub fn version(&self) -> Result<semver::Version> {
+        let output = Command::new(&self.installer_exe)
+            .arg("--version")
+            .output()
+            .context("failed to run houdini_installer")?;
+        let text = String::from_utf8_lossy(&output.stdout);
+        let version_str = text
+            .split_whitespace()
+            .last()
+            .context("unexpected houdini_installer version output")?;
+        semver::Version::parse(version_str)
+            .with_context(|| format!("failed to parse launcher version from '{}'", text.trim()))
+    }
 
-        String::from_utf8(stdout).context("Failed to parse stdout")
+    /// Uninstalls the product at the given install directory.
+    pub fn uninstall(&self, installdir: &Path) -> Result<()> {
+        let mut cmd = self.elevated_command();
+        let status = cmd
+            .arg("uninstall")
+            .arg(installdir)
+            .status()
+            .context("failed to run houdini_installer")?;
+        if !status.success() {
+            bail!("houdini_installer failed with status {status}");
+        }
+        Ok(())
+    }
+
+    /// Prefers sudo when not root and sudo can actually work:
+    /// interactively when a tty allows a password prompt, headless only if
+    /// passwordless sudo is available. Falls back to a direct invocation.
+    #[cfg(unix)]
+    fn elevated_command(&self) -> Command {
+        use std::io::IsTerminal;
+
+        let is_root = Command::new("id")
+            .arg("-u")
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "0")
+            .unwrap_or(false);
+        if is_root {
+            return Command::new(&self.installer_exe);
+        }
+
+        let sudo_usable = if std::io::stdin().is_terminal() {
+            Command::new("sudo")
+                .arg("-V")
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false)
+        } else {
+            Command::new("sudo")
+                .args(["-n", "true"])
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false)
+        };
+
+        if sudo_usable {
+            eprintln!("Running houdini_installer with sudo");
+            let mut cmd = Command::new("sudo");
+            cmd.arg(&self.installer_exe);
+            cmd
+        } else {
+            log::warn!("not root and sudo unavailable; running houdini_installer unprivileged");
+            Command::new(&self.installer_exe)
+        }
+    }
+
+    #[cfg(not(unix))]
+    fn elevated_command(&self) -> Command {
+        Command::new(&self.installer_exe)
     }
 
     pub fn products(&self) -> Result<Vec<InstalledProduct>> {
