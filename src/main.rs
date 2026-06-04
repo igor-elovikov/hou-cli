@@ -4,6 +4,7 @@ use commands::{Cli, Commands, setup::setup, update::update};
 use console::style;
 use project::Project;
 use std::env;
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 mod commands;
@@ -19,7 +20,7 @@ pub fn main() -> Result<()> {
     env_logger::init();
     log::info!("Initializing...");
 
-    let cli = Cli::parse();
+    let cli = Cli::parse_from(alias_args());
     let hou = hou::Context::new()?;
     let cwd = env::current_dir()?;
 
@@ -104,6 +105,43 @@ pub fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Subcommand a `bin-alias` stands in for. The dist installers create these
+/// aliases (see `[package.metadata.dist.bin-aliases]` in Cargo.toml) as symlinks
+/// to the `hou` binary, so the alias name only shows up in argv[0]. We recover it
+/// and inject the matching subcommand, busybox-style:
+///   hpm   -> hou package
+///   houx  -> hou run
+///   houpy -> hou run hython
+fn alias_subcommand(prog: &str) -> &'static [&'static str] {
+    match prog {
+        "hpm" => &["package"],
+        "houx" => &["run"],
+        "houpy" => &["run", "hython"],
+        _ => &[],
+    }
+}
+
+/// Build the argv handed to clap, expanding a `bin-alias` invocation into its
+/// underlying subcommand. Invoked as `hou`, argv is returned unchanged.
+fn alias_args() -> Vec<OsString> {
+    let mut args: Vec<OsString> = env::args_os().collect();
+    let prog = args
+        .first()
+        .map(Path::new)
+        .and_then(Path::file_stem)
+        .and_then(|s| s.to_str())
+        .map(str::to_ascii_lowercase);
+
+    if let Some(prefix) = prog.as_deref().map(alias_subcommand) {
+        if !prefix.is_empty() {
+            let rest = args.split_off(1);
+            args.extend(prefix.iter().map(OsString::from));
+            args.extend(rest);
+        }
+    }
+    args
 }
 
 struct DefaultLaunch {
