@@ -103,11 +103,18 @@ impl Client {
         Ok(file_path)
     }
 
+    /// Downloads the launcher installer into `staging_dir` (must be writable)
+    /// and installs it into `target_dir`. `target_dir` is the launcher directory
+    /// itself on Linux (e.g. `data_dir/installer/houdini_launcher` or
+    /// `/opt/sidefx/launcher`) and the directory that holds `Houdini Launcher.app`
+    /// on macOS. System targets are installed with elevation; see
+    /// [`crate::installer::elevated_command`].
     pub fn install_launcher(
         &self,
         launcher: HoudiniLauncher,
         version: impl Into<String>,
-        dest: &Path,
+        staging_dir: &Path,
+        target_dir: &Path,
     ) -> Result<PathBuf> {
         let platform = Platform::host()?;
 
@@ -125,32 +132,45 @@ impl Client {
             .platform(launcher_platform)
             .send()?;
 
-        let build = self.download_build(&info, dest)?;
-        install_launcher(&build, dest)
+        let build = self.download_build(&info, staging_dir)?;
+        install_launcher(&build, target_dir)
     }
 }
 
 #[cfg(target_os = "linux")]
-fn install_launcher(installer: &Path, dest: &Path) -> Result<PathBuf> {
+fn install_launcher(installer: &Path, target_dir: &Path) -> Result<PathBuf> {
     use std::os::unix::fs::PermissionsExt;
     let mut perms = std::fs::metadata(installer)?.permissions();
     perms.set_mode(0o755);
     std::fs::set_permissions(installer, perms)?;
 
-    let status = std::process::Command::new(installer)
-        .arg("houdini_launcher")
-        .current_dir(dest)
+    // The installer extracts the launcher into the directory named by its
+    // argument, resolved against the working directory. Splitting the target
+    // into parent + name lets us land it at `data_dir/installer/houdini_launcher`
+    // for a local install or `/opt/sidefx/launcher` for a system one.
+    let parent = target_dir
+        .parent()
+        .with_context(|| format!("launcher target {} has no parent", target_dir.display()))?;
+    let name = target_dir
+        .file_name()
+        .with_context(|| format!("launcher target {} has no final component", target_dir.display()))?;
+    std::fs::create_dir_all(parent)
+        .with_context(|| format!("failed to create {}", parent.display()))?;
+
+    let status = crate::installer::elevated_command(installer)
+        .arg(name)
+        .current_dir(parent)
         .status()
         .context("failed to run install_houdini_launcher.sh")?;
     if !status.success() {
         bail!("launcher install script failed with status {status}");
     }
 
-    Ok(dest.join("houdini_launcher"))
+    Ok(target_dir.to_path_buf())
 }
 
 #[cfg(target_os = "macos")]
-fn install_launcher(dmg: &Path, dest: &Path) -> Result<PathBuf> {
+fn install_launcher(dmg: &Path, target_dir: &Path) -> Result<PathBuf> {
     let pb = ProgressBar::new_spinner();
     pb.enable_steady_tick(Duration::from_millis(120));
     pb.set_style(
@@ -158,12 +178,16 @@ fn install_launcher(dmg: &Path, dest: &Path) -> Result<PathBuf> {
             .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
     );
 
-    let install_dir = dest.join("launcher");
-    std::fs::create_dir_all(&install_dir)
+    // `target_dir` is the directory that holds `Houdini Launcher.app`.
+    let install_dir = target_dir;
+    std::fs::create_dir_all(install_dir)
         .with_context(|| format!("failed to create {}", install_dir.display()))?;
 
+    // Mount the DMG next to the downloaded file, not under the install target.
+    let staging_dir = dmg.parent().unwrap_or(install_dir);
+
     pb.set_message("Mounting DMG...");
-    let mount_point = dest.join(".launcher_dmg_mount");
+    let mount_point = staging_dir.join(".launcher_dmg_mount");
     if mount_point.exists() {
         std::fs::remove_dir_all(&mount_point).ok();
     }
@@ -192,7 +216,7 @@ fn install_launcher(dmg: &Path, dest: &Path) -> Result<PathBuf> {
     let copy_result = std::process::Command::new("cp")
         .arg("-R")
         .arg(&app_src)
-        .arg(&install_dir)
+        .arg(install_dir)
         .status()
         .context("failed to run cp for Houdini Launcher.app");
 

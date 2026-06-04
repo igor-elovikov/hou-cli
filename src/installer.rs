@@ -7,6 +7,24 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+/// Subdirectory of the data dir where `hou` installs and discovers the
+/// SideFX launcher (both `houdini_installer` and `houdini_launcher` live here).
+pub const INSTALLER_DIR: &str = "installer";
+
+/// The `hou`-managed launcher install directory under `data_dir`, used by
+/// `setup` and as the fallback for `update`. Matches the local layout that
+/// [`Installer::candidate_paths`] discovers and that [`Installer::launcher_dir`]
+/// returns for a local install. The shape differs per platform (a bare dir on
+/// macOS that holds the `.app`, the launcher dir itself on Linux).
+pub fn default_launcher_dir(data_dir: &Path) -> PathBuf {
+    let base = data_dir.join(INSTALLER_DIR);
+    if cfg!(target_os = "macos") {
+        base
+    } else {
+        base.join("houdini_launcher")
+    }
+}
+
 #[derive(Debug)]
 pub struct Installer {
     installer_exe: PathBuf,
@@ -52,7 +70,12 @@ impl Installer {
     /// by current installers despite being documented.
     /// On Apple Silicon the M1 build option is mandatory: the x86_64-only
     /// installer infers Intel under Rosetta (the GUI checkbox does the same).
-    pub fn install_houdini(&self, version: &str, settings_file: &Path, eulas: &[String]) -> Result<()> {
+    pub fn install_houdini(
+        &self,
+        version: &str,
+        settings_file: &Path,
+        eulas: &[String],
+    ) -> Result<()> {
         let mut cmd = self.elevated_command();
         cmd.arg("install")
             .args(["--product", "Houdini", "--version", version])
@@ -64,13 +87,29 @@ impl Installer {
         for date in eulas {
             cmd.arg("--accept-EULA").arg(date);
         }
-        let status = cmd
-            .status()
-            .context("failed to run houdini_installer")?;
+        let status = cmd.status().context("failed to run houdini_installer")?;
         if !status.success() {
             bail!("houdini_installer failed with status {status}");
         }
         Ok(())
+    }
+
+    /// Path to the discovered houdini_installer executable.
+    pub fn path(&self) -> &Path {
+        &self.installer_exe
+    }
+
+    /// Directory the discovered launcher is installed in, suitable to pass back
+    /// to [`crate::sidefx::Client::install_launcher`] as the install target.
+    /// `update` reinstalls here so a system launcher (e.g. `/opt/sidefx/launcher`)
+    /// is refreshed in place rather than shadowed by a local copy.
+    ///
+    /// On Linux this is the dir holding `bin/` (the discovered exe is at
+    /// `<dir>/bin/houdini_installer`). On macOS it is the dir holding
+    /// `Houdini Launcher.app` (exe at `<dir>/Houdini Launcher.app/Contents/MacOS/houdini_installer`).
+    pub fn launcher_dir(&self) -> Option<PathBuf> {
+        let depth = if cfg!(target_os = "macos") { 4 } else { 2 };
+        self.installer_exe.ancestors().nth(depth).map(Path::to_path_buf)
     }
 
     /// Returns the launcher version reported by houdini_installer.
@@ -102,54 +141,12 @@ impl Installer {
         Ok(())
     }
 
-    /// Prefers sudo when not root and sudo can actually work:
-    /// interactively when a tty allows a password prompt, headless only if
-    /// passwordless sudo is available. Falls back to a direct invocation.
-    #[cfg(unix)]
     fn elevated_command(&self) -> Command {
-        use std::io::IsTerminal;
-
-        let is_root = Command::new("id")
-            .arg("-u")
-            .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "0")
-            .unwrap_or(false);
-        if is_root {
-            return Command::new(&self.installer_exe);
-        }
-
-        let sudo_usable = if std::io::stdin().is_terminal() {
-            Command::new("sudo")
-                .arg("-V")
-                .output()
-                .map(|o| o.status.success())
-                .unwrap_or(false)
-        } else {
-            Command::new("sudo")
-                .args(["-n", "true"])
-                .output()
-                .map(|o| o.status.success())
-                .unwrap_or(false)
-        };
-
-        if sudo_usable {
-            eprintln!("Running houdini_installer with sudo");
-            let mut cmd = Command::new("sudo");
-            cmd.arg(&self.installer_exe);
-            cmd
-        } else {
-            log::warn!("not root and sudo unavailable; running houdini_installer unprivileged");
-            Command::new(&self.installer_exe)
-        }
-    }
-
-    #[cfg(not(unix))]
-    fn elevated_command(&self) -> Command {
-        Command::new(&self.installer_exe)
+        elevated_command(&self.installer_exe)
     }
 
     pub fn products(&self) -> Result<Vec<InstalledProduct>> {
-        let overview_path = Self::overview_path();
+        let overview_path = self.overview_path()?;
 
         let overview_data = fs::read_to_string(&overview_path).with_context(|| {
             format!(
@@ -196,13 +193,21 @@ impl Installer {
     }
 
     #[cfg(target_os = "macos")]
-    fn overview_path() -> PathBuf {
-        PathBuf::from("/Library/Application Support/com.sidefx.launcher/overview.json")
+    fn overview_path() -> Result<PathBuf> {
+        Ok(PathBuf::from(
+            "/Library/Application Support/com.sidefx.launcher/overview.json",
+        ))
     }
 
     #[cfg(target_os = "linux")]
-    fn overview_path() -> PathBuf {
-        unimplemented!("Overview path not implemented for linux")
+    fn overview_path(&self) -> Result<PathBuf> {
+        Ok(self
+            .installer_exe
+            .parent()
+            .context("Can't find overview directory in launcher")?
+            .parent()
+            .context("Can't find overview directory in launcher")?
+            .join("data/overview.json"))
     }
 
     #[cfg(target_os = "windows")]
@@ -218,7 +223,9 @@ impl Installer {
     #[cfg(target_os = "macos")]
     fn candidate_paths(data_path: &Path) -> Vec<PathBuf> {
         vec![
-            data_path.join("launcher/Houdini Launcher.app/Contents/MacOS/houdini_installer"),
+            data_path
+                .join(INSTALLER_DIR)
+                .join("Houdini Launcher.app/Contents/MacOS/houdini_installer"),
             PathBuf::from("/Applications/Houdini Launcher.app/Contents/MacOS/houdini_installer"),
         ]
     }
@@ -226,7 +233,9 @@ impl Installer {
     #[cfg(target_os = "linux")]
     fn candidate_paths(data_path: &Path) -> Vec<PathBuf> {
         vec![
-            data_path.join("installer/houdini_installer"),
+            data_path
+                .join(INSTALLER_DIR)
+                .join("houdini_launcher/bin/houdini_installer"),
             PathBuf::from("/opt/sidefx/launcher/bin/houdini_installer"),
         ]
     }
@@ -235,4 +244,54 @@ impl Installer {
     fn candidate_paths(_data_path: &Path) -> Vec<PathBuf> {
         vec![]
     }
+}
+
+/// Builds a command that runs `exe` with elevated privileges where needed.
+/// Prefers sudo when not root and sudo can actually work: interactively when a
+/// tty allows a password prompt, headless only if passwordless sudo is
+/// available. Falls back to a direct invocation.
+#[cfg(unix)]
+pub fn elevated_command(exe: &Path) -> Command {
+    use std::io::IsTerminal;
+
+    let is_root = Command::new("id")
+        .arg("-u")
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "0")
+        .unwrap_or(false);
+    if is_root {
+        return Command::new(exe);
+    }
+
+    let sudo_usable = if std::io::stdin().is_terminal() {
+        Command::new("sudo")
+            .arg("-V")
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    } else {
+        Command::new("sudo")
+            .args(["-n", "true"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    };
+
+    if sudo_usable {
+        eprintln!("Running {} with sudo", exe.display());
+        let mut cmd = Command::new("sudo");
+        cmd.arg(exe);
+        cmd
+    } else {
+        log::warn!(
+            "not root and sudo unavailable; running {} unprivileged",
+            exe.display()
+        );
+        Command::new(exe)
+    }
+}
+
+#[cfg(not(unix))]
+pub fn elevated_command(exe: &Path) -> Command {
+    Command::new(exe)
 }

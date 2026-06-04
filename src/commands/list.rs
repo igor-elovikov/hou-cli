@@ -44,9 +44,10 @@ impl ListCmd {
         }
 
         println!(
-            "{} {}",
+            "{} {}  {}",
             style("Launcher").bold().cyan(),
             style(&launcher).bold(),
+            style(ctx.installer.path().display()).dim(),
         );
         println!("{}", style("Installed Products").bold());
         if entries.is_empty() {
