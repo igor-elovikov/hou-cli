@@ -1,0 +1,54 @@
+site_name: hou
+site_description: A command-line companion for Houdini — launch builds, manage projects and packages.
+repo_url: https://github.com/igor-elovikov/hou-cli
+repo_name: igor-elovikov/hou-cli
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep orange
+      accent: deep orange
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep orange
+      accent: deep orange
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - attr_list
+  - tables
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quickstart: getting-started/quickstart.md
+  - Guide:
+      - Launching Houdini: guide/launching.md
+      - Projects: guide/projects.md
+      - Packages: guide/packages.md
+      - Managing Builds: guide/builds.md
+      - Running Tools: guide/tools.md
+  - Reference:
+      - CLI Reference: reference/cli.md
+      - Configuration: reference/configuration.md
