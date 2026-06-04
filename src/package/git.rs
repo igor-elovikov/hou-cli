@@ -24,7 +24,10 @@ pub fn clone_at(url: &str, dest: &Path, ref_name: Option<&str>) -> Result<String
     let pb = spinner(format!("Cloning {url} @ {}", ref_name.unwrap_or("HEAD")));
 
     let mut cmd = Command::new("git");
-    cmd.arg("clone").arg("--depth=1").arg("--single-branch");
+    // Tag checkouts print the long detached-HEAD advice otherwise.
+    cmd.args(["-c", "advice.detachedHead=false", "clone"])
+        .arg("--depth=1")
+        .arg("--single-branch");
     if let Some(name) = ref_name {
         cmd.arg("--branch").arg(name);
     }
