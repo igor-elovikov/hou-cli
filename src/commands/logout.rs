@@ -2,7 +2,6 @@ use crate::hou::Context;
 use crate::settings::Settings;
 use anyhow::Result;
 use clap::Args;
-use console::style;
 
 #[derive(Args)]
 pub struct LogoutCmd;

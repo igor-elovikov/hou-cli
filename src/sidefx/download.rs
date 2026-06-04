@@ -6,6 +6,7 @@ use serde_json::Value;
 
 #[derive(Debug, Clone, Copy)]
 pub enum BuildSpec {
+    #[allow(dead_code)]
     Number(u32),
     Production,
 }
@@ -20,6 +21,7 @@ impl BuildSpec {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct BuildDownload {
     pub date: NaiveDate,
     pub download_url: String,

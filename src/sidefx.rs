@@ -11,7 +11,6 @@ use serde::Deserialize;
 use serde_json::Value;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 use ureq::Agent;
 
 const TOKEN_URL: &str = "https://www.sidefx.com/oauth2/application_token";
