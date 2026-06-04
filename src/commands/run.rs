@@ -6,6 +6,9 @@ use std::process::Command;
 
 #[derive(Args)]
 pub struct Run {
+    /// Houdini version filter (ignored inside a project).
+    #[arg(short, long)]
+    pub version: Option<String>,
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     args: Vec<String>,
 }

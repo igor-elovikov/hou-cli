@@ -58,9 +58,23 @@ pub fn main() -> Result<()> {
         }
     }
 
-    let version_filter = match (&project, cli.version.as_deref()) {
+    // --version from the subcommand, or top-level for the default launch
+    let user_version = match &cli.command {
+        None => cli.version.clone(),
+        Some(Commands::Run(cmd)) => cmd.version.clone(),
+        Some(Commands::Package(cmd)) => cmd.version.clone(),
+        Some(Commands::Init(cmd)) => cmd.version.clone(),
+        Some(_) => None,
+    };
+
+    // explicit --global package scope escapes the project version pin
+    let global_package_scope =
+        matches!(&cli.command, Some(Commands::Package(cmd)) if cmd.global);
+
+    let version_filter = match (&project, user_version) {
+        (Some(_), Some(v)) if global_package_scope => Some(v),
         (Some(p), user_filter) => {
-            if let Some(v) = user_filter {
+            if let Some(v) = &user_filter {
                 let project_version = p.houdini_version().unwrap_or("(unset)");
                 eprintln!(
                     "{} --version={} is ignored inside a project; using project's houdini_version={}",
@@ -71,7 +85,7 @@ pub fn main() -> Result<()> {
             }
             p.houdini_version().map(|s| s.to_string())
         }
-        (None, user_filter) => user_filter.map(|s| s.to_string()),
+        (None, user_filter) => user_filter,
     };
 
     match cli.command {

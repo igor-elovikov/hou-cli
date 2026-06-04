@@ -11,6 +11,9 @@ use std::path::PathBuf;
 pub struct InitCmd {
     /// Optional project directory. If omitted, initializes the current directory.
     pub name: Option<String>,
+    /// Houdini version to pin in the project options.
+    #[arg(short, long)]
+    pub version: Option<String>,
 }
 
 const PACKAGE_LAYOUT: &[&str] = &[

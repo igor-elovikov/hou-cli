@@ -18,6 +18,9 @@ pub struct PackageCmd {
     /// Operate on the project manifest (requires being inside a project).
     #[arg(long, global = true)]
     pub local: bool,
+    /// Houdini version filter (inside a project requires --global).
+    #[arg(short, long, global = true)]
+    pub version: Option<String>,
     /// Skip patching package json files after install/update/sync.
     #[arg(long, global = true)]
     pub no_patch: bool,
@@ -143,15 +146,33 @@ impl PackageCmd {
         }
 
         if show_global {
-            if wrote {
-                println!();
+            // outside a project with no filter: every installed major.minor line
+            let targets: Vec<&HoudiniInstallation> = if project.is_none() && self.version.is_none()
+            {
+                let mut hs: Vec<_> = ctx.houdinis().collect();
+                hs.sort_by(|a, b| b.version.cmp(&a.version));
+                hs.dedup_by_key(|h| (h.version.major, h.version.minor));
+                hs
+            } else {
+                vec![houdini]
+            };
+            for h in targets {
+                if wrote {
+                    println!();
+                }
+                let pkgs = Packages::open_global(ctx, h, self.no_patch)?;
+                print_global_header(h);
+                print_packages(pkgs.list());
+                wrote = true;
             }
-            let pkgs = Packages::open_global(ctx, houdini, self.no_patch)?;
-            println!("{}", style("Global").bold());
-            print_packages(pkgs.list());
         }
         Ok(())
     }
+}
+
+fn print_global_header(houdini: &HoudiniInstallation) {
+    let line = format!("{}.{}", houdini.version.major, houdini.version.minor);
+    println!("{} {}", style("Global").bold(), style(line).bold().cyan());
 }
 
 fn print_project_header(project: &Project) {

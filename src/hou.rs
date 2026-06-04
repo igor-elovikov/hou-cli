@@ -47,19 +47,22 @@ impl Context {
         })
     }
 
-    pub fn resolve_houdini(&self, filter: Option<&str>) -> Result<&HoudiniInstallation> {
-        let houdinis = self.products.iter().filter_map(|p| match p {
+    /// Installed Houdini builds.
+    pub fn houdinis(&self) -> impl Iterator<Item = &HoudiniInstallation> {
+        self.products.iter().filter_map(|p| match p {
             InstalledProduct::Houdini(h) => Some(h),
             _ => None,
-        });
+        })
+    }
 
+    pub fn resolve_houdini(&self, filter: Option<&str>) -> Result<&HoudiniInstallation> {
         let selected = match filter {
-            None => houdinis.max_by_key(|h| &h.version),
+            None => self.houdinis().max_by_key(|h| &h.version),
             Some(f) => {
                 let normalized = normalize_filter(f);
                 let req = semver::VersionReq::parse(&normalized)
                     .with_context(|| format!("Invalid version requirement '{f}'"))?;
-                houdinis
+                self.houdinis()
                     .filter(|h| req.matches(&h.version))
                     .max_by_key(|h| &h.version)
             }
