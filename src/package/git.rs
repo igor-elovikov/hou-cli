@@ -1,8 +1,6 @@
 use anyhow::{Context, Result, bail};
-use indicatif::{ProgressBar, ProgressStyle};
 use std::path::Path;
 use std::process::{Command, Stdio};
-use std::time::Duration;
 
 pub fn clone_at(url: &str, dest: &Path, ref_name: Option<&str>) -> Result<String> {
     log::info!(
@@ -21,8 +19,6 @@ pub fn clone_at(url: &str, dest: &Path, ref_name: Option<&str>) -> Result<String
             .with_context(|| format!("Failed to create {}", parent.display()))?;
     }
 
-    let pb = spinner(format!("Cloning {url} @ {}", ref_name.unwrap_or("HEAD")));
-
     let mut cmd = Command::new("git");
     // Tag checkouts print the long detached-HEAD advice otherwise.
     cmd.args(["-c", "advice.detachedHead=false", "clone"])
@@ -32,16 +28,16 @@ pub fn clone_at(url: &str, dest: &Path, ref_name: Option<&str>) -> Result<String
         cmd.arg("--branch").arg(name);
     }
     cmd.arg(url).arg(dest);
-    run_interactive(&pb, cmd, "git clone")?;
+    run_interactive(cmd, "git clone")?;
 
     let commit = head_commit(dest)?;
     log::info!("Fetched {url} @ {commit}");
 
-    pb.finish_with_message(format!(
+    println!(
         "Cloned {} @ {}",
         short_sha(&commit),
         ref_name.unwrap_or("HEAD")
-    ));
+    );
     Ok(commit)
 }
 
@@ -52,8 +48,6 @@ pub fn fetch_update(dest: &Path, ref_name: Option<&str>) -> Result<String> {
         ref_name.unwrap_or("HEAD")
     );
 
-    let pb = spinner(format!("Fetching {}", ref_name.unwrap_or("HEAD")));
-
     let mut cmd = Command::new("git");
     cmd.arg("-C")
         .arg(dest)
@@ -63,9 +57,8 @@ pub fn fetch_update(dest: &Path, ref_name: Option<&str>) -> Result<String> {
     if let Some(name) = ref_name {
         cmd.arg(name);
     }
-    run_interactive(&pb, cmd, "git fetch")?;
+    run_interactive(cmd, "git fetch")?;
 
-    pb.set_message("Resetting worktree");
     let mut reset = Command::new("git");
     reset
         .arg("-C")
@@ -73,7 +66,6 @@ pub fn fetch_update(dest: &Path, ref_name: Option<&str>) -> Result<String> {
         .args(["reset", "--hard", "--quiet", "FETCH_HEAD"]);
     run_local(reset, "git reset")?;
 
-    pb.set_message("Cleaning untracked files");
     let mut clean = Command::new("git");
     clean
         .arg("-C")
@@ -82,11 +74,11 @@ pub fn fetch_update(dest: &Path, ref_name: Option<&str>) -> Result<String> {
     run_local(clean, "git clean")?;
 
     let commit = head_commit(dest)?;
-    pb.finish_with_message(format!(
+    println!(
         "Updated to {} @ {}",
         short_sha(&commit),
         ref_name.unwrap_or("HEAD")
-    ));
+    );
     Ok(commit)
 }
 
@@ -144,18 +136,16 @@ fn head_commit(dest: &Path) -> Result<String> {
 }
 
 /// Run a git command that may prompt for credentials or print progress.
-/// The spinner is paused around the call so its redraws don't collide with
-/// git's terminal output, and all three std streams inherit from the parent
-/// so credential helpers and tty prompts work.
-fn run_interactive(pb: &ProgressBar, mut cmd: Command, label: &str) -> Result<()> {
+/// All three std streams inherit from the parent so credential helpers and
+/// tty prompts work.
+fn run_interactive(mut cmd: Command, label: &str) -> Result<()> {
     cmd.stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());
-    let status = pb
-        .suspend(|| cmd.status())
+    let status = cmd
+        .status()
         .with_context(|| format!("Failed to spawn `{label}` — is git on PATH?"))?;
     if !status.success() {
-        pb.finish_and_clear();
         bail!("{label} failed ({status})");
     }
     Ok(())
@@ -174,18 +164,6 @@ fn run_local(mut cmd: Command, label: &str) -> Result<()> {
         );
     }
     Ok(())
-}
-
-fn spinner(message: String) -> ProgressBar {
-    let pb = ProgressBar::new_spinner();
-    pb.enable_steady_tick(Duration::from_millis(120));
-    pb.set_style(
-        ProgressStyle::with_template("{spinner:.blue} [{elapsed_precise}] {msg}")
-            .expect("valid template")
-            .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
-    );
-    pb.set_message(message);
-    pb
 }
 
 fn short_sha(sha: &str) -> &str {
