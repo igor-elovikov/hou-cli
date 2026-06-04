@@ -8,8 +8,8 @@ pub mod login;
 pub mod logout;
 mod package;
 mod run;
-mod sidefx;
 pub mod setup;
+mod sidefx;
 pub mod uninstall;
 pub mod update;
 

@@ -29,8 +29,7 @@ pub fn dir_digest(root: &Path) -> Result<String> {
         let rel_bytes = rel.to_string_lossy();
         hasher.update(rel_bytes.as_bytes());
         hasher.update(&[0u8]);
-        let file = File::open(abs)
-            .with_context(|| format!("Failed to open {}", abs.display()))?;
+        let file = File::open(abs).with_context(|| format!("Failed to open {}", abs.display()))?;
         let mut reader = BufReader::new(file);
         loop {
             let n = reader

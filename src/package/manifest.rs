@@ -48,7 +48,10 @@ impl Manifest {
 
     pub fn load_from(path: &Path) -> Result<Self> {
         if !path.exists() {
-            log::debug!("Manifest missing at {}, using empty default", path.display());
+            log::debug!(
+                "Manifest missing at {}, using empty default",
+                path.display()
+            );
             return Ok(Self::default());
         }
         log::debug!("Loading manifest from {}", path.display());

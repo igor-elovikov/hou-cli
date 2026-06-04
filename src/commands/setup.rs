@@ -31,10 +31,15 @@ pub fn setup(ctx: &crate::hou::Context) -> Result<()> {
     let latest_major = format!("{}.{}", latest_version.major, latest_version.minor);
 
     println!("Found launcher version: {}", style(latest_version).green());
-    
+
     let target = crate::installer::default_launcher_dir(&ctx.data_dir);
 
-    client.install_launcher(HoudiniLauncher::Default, latest_major, &ctx.data_dir, &target)?;
+    client.install_launcher(
+        HoudiniLauncher::Default,
+        latest_major,
+        &ctx.data_dir,
+        &target,
+    )?;
 
     Ok(())
 }

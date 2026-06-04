@@ -11,6 +11,8 @@ use serde::Deserialize;
 use serde_json::Value;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+#[cfg(target_os = "macos")]
+use std::time::Duration;
 use ureq::Agent;
 
 const TOKEN_URL: &str = "https://www.sidefx.com/oauth2/application_token";
@@ -150,17 +152,26 @@ fn install_launcher(installer: &Path, target_dir: &Path) -> Result<PathBuf> {
     let parent = target_dir
         .parent()
         .with_context(|| format!("launcher target {} has no parent", target_dir.display()))?;
-    let name = target_dir
-        .file_name()
-        .with_context(|| format!("launcher target {} has no final component", target_dir.display()))?;
+    let name = target_dir.file_name().with_context(|| {
+        format!(
+            "launcher target {} has no final component",
+            target_dir.display()
+        )
+    })?;
     std::fs::create_dir_all(parent)
         .with_context(|| format!("failed to create {}", parent.display()))?;
 
-    let status = crate::installer::elevated_command(installer)
-        .arg(name)
-        .current_dir(parent)
-        .status()
-        .context("failed to run install_houdini_launcher.sh")?;
+    let status = crate::installer::elevated_command(
+        installer,
+        &format!(
+            "sudo needed to install the launcher to {}",
+            target_dir.display()
+        ),
+    )
+    .arg(name)
+    .current_dir(parent)
+    .status()
+    .context("failed to run install_houdini_launcher.sh")?;
     if !status.success() {
         bail!("launcher install script failed with status {status}");
     }
@@ -206,18 +217,52 @@ fn install_launcher(dmg: &Path, target_dir: &Path) -> Result<PathBuf> {
 
     let app_src = mount_point.join("Houdini Launcher.app");
     let app_dst = install_dir.join("Houdini Launcher.app");
+    // System installs (e.g. /Applications) are root-owned; escalate when a
+    // plain removal is denied and reuse the elevation for the copy.
+    let mut elevate = false;
     if app_dst.exists() {
-        std::fs::remove_dir_all(&app_dst)
-            .with_context(|| format!("failed to remove {}", app_dst.display()))?;
+        match std::fs::remove_dir_all(&app_dst) {
+            Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+                elevate = true;
+                let reason = format!(
+                    "sudo needed to remove the old launcher and copy the new one to {}",
+                    install_dir.display()
+                );
+                let status = pb
+                    .suspend(|| {
+                        crate::installer::elevated_command(Path::new("rm"), &reason)
+                            .arg("-rf")
+                            .arg(&app_dst)
+                            .status()
+                    })
+                    .context("failed to run rm for Houdini Launcher.app")?;
+                if !status.success() {
+                    bail!(
+                        "failed to remove {} (rm exited with {status})",
+                        app_dst.display()
+                    );
+                }
+            }
+            other => other.with_context(|| format!("failed to remove {}", app_dst.display()))?,
+        }
     }
 
     pb.set_message("Copying Houdini Launcher (this may take a moment)...");
-    let copy_result = std::process::Command::new("cp")
-        .arg("-R")
-        .arg(&app_src)
-        .arg(install_dir)
-        .status()
-        .context("failed to run cp for Houdini Launcher.app");
+    let run_cp = || {
+        let mut cmd = if elevate {
+            // The rm above already explained the elevation.
+            crate::installer::elevated_command(Path::new("cp"), "")
+        } else {
+            std::process::Command::new("cp")
+        };
+        cmd.arg("-R").arg(&app_src).arg(install_dir).status()
+    };
+    let copy_result = if elevate {
+        pb.suspend(run_cp)
+    } else {
+        run_cp()
+    }
+    .context("failed to run cp for Houdini Launcher.app");
 
     pb.set_message("Unmounting and cleaning up...");
     let detach_status = std::process::Command::new("hdiutil")

@@ -76,7 +76,7 @@ impl Installer {
         settings_file: &Path,
         eulas: &[String],
     ) -> Result<()> {
-        let mut cmd = self.elevated_command();
+        let mut cmd = self.elevated_command("sudo needed to install Houdini to system locations");
         cmd.arg("install")
             .args(["--product", "Houdini", "--version", version])
             .arg("--settings-file")
@@ -109,7 +109,10 @@ impl Installer {
     /// `Houdini Launcher.app` (exe at `<dir>/Houdini Launcher.app/Contents/MacOS/houdini_installer`).
     pub fn launcher_dir(&self) -> Option<PathBuf> {
         let depth = if cfg!(target_os = "macos") { 4 } else { 2 };
-        self.installer_exe.ancestors().nth(depth).map(Path::to_path_buf)
+        self.installer_exe
+            .ancestors()
+            .nth(depth)
+            .map(Path::to_path_buf)
     }
 
     /// Returns the launcher version reported by houdini_installer.
@@ -129,7 +132,7 @@ impl Installer {
 
     /// Uninstalls the product at the given install directory.
     pub fn uninstall(&self, installdir: &Path) -> Result<()> {
-        let mut cmd = self.elevated_command();
+        let mut cmd = self.elevated_command("sudo needed to remove a system Houdini install");
         let status = cmd
             .arg("uninstall")
             .arg(installdir)
@@ -141,8 +144,8 @@ impl Installer {
         Ok(())
     }
 
-    fn elevated_command(&self) -> Command {
-        elevated_command(&self.installer_exe)
+    fn elevated_command(&self, reason: &str) -> Command {
+        elevated_command(&self.installer_exe, reason)
     }
 
     pub fn products(&self) -> Result<Vec<InstalledProduct>> {
@@ -193,7 +196,7 @@ impl Installer {
     }
 
     #[cfg(target_os = "macos")]
-    fn overview_path() -> Result<PathBuf> {
+    fn overview_path(&self) -> Result<PathBuf> {
         Ok(PathBuf::from(
             "/Library/Application Support/com.sidefx.launcher/overview.json",
         ))
@@ -249,9 +252,10 @@ impl Installer {
 /// Builds a command that runs `exe` with elevated privileges where needed.
 /// Prefers sudo when not root and sudo can actually work: interactively when a
 /// tty allows a password prompt, headless only if passwordless sudo is
-/// available. Falls back to a direct invocation.
+/// available. Falls back to a direct invocation. A non-empty `reason` is shown
+/// when sudo is used to explain the password prompt.
 #[cfg(unix)]
-pub fn elevated_command(exe: &Path) -> Command {
+pub fn elevated_command(exe: &Path, reason: &str) -> Command {
     use std::io::IsTerminal;
 
     let is_root = Command::new("id")
@@ -278,7 +282,10 @@ pub fn elevated_command(exe: &Path) -> Command {
     };
 
     if sudo_usable {
-        eprintln!("Running {} with sudo", exe.display());
+        if !reason.is_empty() {
+            eprintln!("{reason}");
+        }
+        log::info!("running {} with sudo", exe.display());
         let mut cmd = Command::new("sudo");
         cmd.arg(exe);
         cmd
@@ -292,6 +299,6 @@ pub fn elevated_command(exe: &Path) -> Command {
 }
 
 #[cfg(not(unix))]
-pub fn elevated_command(exe: &Path) -> Command {
+pub fn elevated_command(exe: &Path, _reason: &str) -> Command {
     Command::new(exe)
 }

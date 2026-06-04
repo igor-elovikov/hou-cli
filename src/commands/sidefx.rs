@@ -35,7 +35,6 @@ impl SideFX {
 
         match self.command {
             SideFXCommand::Builds(args) => {
-
                 let mut builds = client.builds(args.product);
 
                 if let Some(version) = args.version {

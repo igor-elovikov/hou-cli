@@ -190,10 +190,7 @@ fn print_packages(manifest: &Manifest) {
 }
 
 fn display_name(path: &Path, entry: &SourceMetadata) -> String {
-    let base = path
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or("?");
+    let base = path.file_name().and_then(|s| s.to_str()).unwrap_or("?");
     match entry {
         SourceMetadata::Git(_) => strip_hash_suffix(base).to_string(),
         SourceMetadata::Folder(_) => base.to_string(),

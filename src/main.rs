@@ -97,9 +97,7 @@ pub fn main() -> Result<()> {
         Some(Commands::Eula(cmd)) => cmd.run(&hou)?,
         None => {
             let houdini = hou.resolve_houdini(version_filter.as_deref())?;
-            let forward_args = default_launch
-                .map(|d| d.forward_args)
-                .unwrap_or_default();
+            let forward_args = default_launch.map(|d| d.forward_args).unwrap_or_default();
             houdini.launch_houdini(&forward_args, project.as_ref(), cli.attach)?;
         }
     }
@@ -150,11 +148,7 @@ struct DefaultLaunch {
     require_project: bool,
 }
 
-fn parse_default_launch(
-    cwd: &Path,
-    file: Option<&str>,
-    houdini_args: &[String],
-) -> DefaultLaunch {
+fn parse_default_launch(cwd: &Path, file: Option<&str>, houdini_args: &[String]) -> DefaultLaunch {
     let Some(first) = file else {
         return DefaultLaunch {
             discovery_start: cwd.to_path_buf(),

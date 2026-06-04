@@ -29,8 +29,7 @@ impl Settings {
         let credentials = if path.exists() {
             let text = std::fs::read_to_string(&path)
                 .with_context(|| format!("failed to read {}", path.display()))?;
-            toml::from_str(&text)
-                .with_context(|| format!("failed to parse {}", path.display()))?
+            toml::from_str(&text).with_context(|| format!("failed to parse {}", path.display()))?
         } else {
             Credentials::default()
         };
@@ -46,8 +45,8 @@ impl Settings {
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("failed to create {}", parent.display()))?;
         }
-        let text = toml::to_string_pretty(&self.credentials)
-            .context("failed to serialize credentials")?;
+        let text =
+            toml::to_string_pretty(&self.credentials).context("failed to serialize credentials")?;
         std::fs::write(&self.path, text)
             .with_context(|| format!("failed to write {}", self.path.display()))?;
         Ok(())

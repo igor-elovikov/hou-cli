@@ -56,7 +56,12 @@ pub fn update(ctx: &crate::hou::Context) -> Result<()> {
     );
 
     let latest_major = format!("{}.{}", latest.version.major, latest.version.minor);
-    client.install_launcher(HoudiniLauncher::Default, latest_major, &ctx.data_dir, &target)?;
+    client.install_launcher(
+        HoudiniLauncher::Default,
+        latest_major,
+        &ctx.data_dir,
+        &target,
+    )?;
 
     Ok(())
 }
