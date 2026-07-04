@@ -214,8 +214,14 @@ impl Installer {
     }
 
     #[cfg(target_os = "windows")]
-    fn overview_path() -> PathBuf {
-        unimplemented!("Overview path not implemented for windows")
+    fn overview_path(&self) -> Result<PathBuf> {
+        Ok(self
+            .installer_exe
+            .parent()
+            .context("Can't find overview directory in launcher")?
+            .parent()
+            .context("Can't find overview directory in launcher")?
+            .join("data/overview.json"))
     }
 
     #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
@@ -243,9 +249,16 @@ impl Installer {
         ]
     }
 
-    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
-    fn candidate_paths(_data_path: &Path) -> Vec<PathBuf> {
-        vec![]
+    #[cfg(target_os = "windows")]
+    fn candidate_paths(data_path: &Path) -> Vec<PathBuf> {
+        vec![
+            data_path
+                .join(INSTALLER_DIR)
+                .join("houdini_launcher/bin/houdini_installer.exe"),
+            PathBuf::from(
+                r"C:\Program Files\Side Effects Software\Launcher\bin\houdini_installer.exe",
+            ),
+        ]
     }
 }
 

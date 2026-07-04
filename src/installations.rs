@@ -114,6 +114,19 @@ impl HoudiniInstallation {
         Ok(houdini_prefs)
     }
 
+    #[cfg(target_os = "windows")]
+    fn user_prefs_dir(version: &Version) -> Result<PathBuf> {
+        let dirs =
+            directories::BaseDirs::new().context("Failed to get user preference directory")?;
+        let pref = dirs.home_dir();
+
+        let houdini_prefs = pref
+            .join("houdini")
+            .join(format!("{}.{}", version.major, version.minor));
+
+        Ok(houdini_prefs)
+    }
+
     fn env(&self, project: Option<&Project>) -> Result<Vec<(OsString, OsString)>> {
         let bin_path = self.hfs.join("bin");
         let sbin_path = self.hfs.join("sbin");
