@@ -76,9 +76,58 @@ impl Context {
 }
 
 fn normalize_filter(s: &str) -> String {
-    if s.chars().next().map_or(false, |c| c.is_ascii_digit()) && !s.contains('*') {
-        format!("~{s}")
+    // Leave explicit operators (^, >=, etc.) and wildcards untouched.
+    if !s.chars().next().map_or(false, |c| c.is_ascii_digit()) || s.contains('*') {
+        return s.to_string();
+    }
+    // A fully specified version (major.minor.patch) must match exactly.
+    // Using `~` here would treat e.g. `21.0.559` as `>=21.0.559, <21.1.0`,
+    // so `resolve_houdini`'s `max_by_key` would pick a higher patch such as
+    // `21.0.729`. Partial versions keep `~` for prefix matching, e.g. `21.0`
+    // matches all `21.0.x`.
+    if s.split('.').count() >= 3 {
+        format!("={s}")
     } else {
-        s.to_string()
+        format!("~{s}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use semver::{Version, VersionReq};
+
+    fn req(filter: &str) -> VersionReq {
+        VersionReq::parse(&normalize_filter(filter)).unwrap()
+    }
+
+    fn matches(filter: &str, version: &str) -> bool {
+        req(filter).matches(&Version::parse(version).unwrap())
+    }
+
+    #[test]
+    fn full_version_matches_exactly() {
+        // Regression: `21.0.559` must not match a higher patch like `21.0.729`.
+        assert!(matches("21.0.559", "21.0.559"));
+        assert!(!matches("21.0.559", "21.0.729"));
+        assert!(!matches("21.0.559", "21.0.558"));
+    }
+
+    #[test]
+    fn partial_version_matches_prefix() {
+        assert!(matches("21.0", "21.0.559"));
+        assert!(matches("21.0", "21.0.729"));
+        assert!(!matches("21.0", "21.1.0"));
+
+        assert!(matches("21", "21.0.559"));
+        assert!(matches("21", "21.9.999"));
+        assert!(!matches("21", "22.0.0"));
+    }
+
+    #[test]
+    fn explicit_operators_and_wildcards_pass_through() {
+        assert_eq!(normalize_filter("^21.0"), "^21.0");
+        assert_eq!(normalize_filter(">=21.0.0"), ">=21.0.0");
+        assert_eq!(normalize_filter("21.0.*"), "21.0.*");
     }
 }
