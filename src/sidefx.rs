@@ -4,6 +4,7 @@ mod products;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::elevated_command::try_elevated_command;
+#[cfg(target_os = "linux")]
 use crate::elevated_command::try_elevated_command_with_path;
 use anyhow::{Context, Result, anyhow, bail};
 pub use build::BuildsQuery;
