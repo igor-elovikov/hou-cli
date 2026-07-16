@@ -2,17 +2,17 @@ mod build;
 mod download;
 mod products;
 
-use anyhow::{Context, Result, anyhow, bail};
+use crate::elevated_command::try_elevated_command;
+use anyhow::{anyhow, bail, Context, Result};
 pub use build::BuildsQuery;
 pub use download::{BuildDownload, BuildDownloadQuery, BuildSpec};
 use indicatif::{ProgressBar, ProgressStyle};
 pub use products::{Houdini, HoudiniLauncher, Platform, Product, Release, Status};
 use serde::Deserialize;
 use serde_json::Value;
+use std::ffi::OsString;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-use std::time::Duration;
 use ureq::Agent;
 
 const TOKEN_URL: &str = "https://www.sidefx.com/oauth2/application_token";
@@ -286,11 +286,7 @@ fn install_launcher(dmg: &Path, target_dir: &Path) -> Result<PathBuf> {
 
 #[cfg(target_os = "windows")]
 fn install_launcher(installer: &Path, target_dir: &Path) -> Result<PathBuf> {
-    use std::os::windows::process::CommandExt;
 
-    // NSIS requires the target to be an absolute path; `/D=` rejects relative
-    // ones silently. `default_launcher_dir` already hands us an absolute path,
-    // but a caller-supplied one (e.g. a discovered system install) might not be.
     if !target_dir.is_absolute() {
         bail!(
             "launcher install path must be absolute on Windows, got {}",
@@ -298,58 +294,21 @@ fn install_launcher(installer: &Path, target_dir: &Path) -> Result<PathBuf> {
         );
     }
 
-    // The installer's manifest is `asInvoker`, so it only needs elevation when
-    // its target isn't writable by the current user (e.g. under Program Files).
-    // Probe actual write access rather than pre-creating the directory: for an
-    // update over an existing system launcher the directory already exists, so a
-    // `create_dir_all` success would be a false negative and the silent install
-    // would then fail without a UAC prompt.
     let needs_elevation = location_needs_admin(target_dir);
     if !needs_elevation {
         std::fs::create_dir_all(target_dir)
             .with_context(|| format!("failed to create {}", target_dir.display()))?;
     }
 
-    let pb = ProgressBar::new_spinner();
-    pb.enable_steady_tick(Duration::from_millis(120));
-    pb.set_style(
-        ProgressStyle::with_template("{spinner:.blue} {msg}")?
-            .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
-    );
-    pb.set_message(if needs_elevation {
-        "Installing Houdini Launcher (approve the administrator prompt)..."
-    } else {
-        "Installing Houdini Launcher..."
-    });
+    try_elevated_command(
+        installer,
+        &[
+            OsString::from("/S"),
+            OsString::from(format!("/D={}", target_dir.display())),
+        ],
+        "Launcher installation requires administration privileges",
+    )?;
 
-    // The launcher installer is an NSIS package: `/S` runs it silently and `/D=`
-    // sets the install directory. `/D=` must be the last argument and must NOT be
-    // quoted, even when the path contains spaces (NSIS reads everything after the
-    // `=` verbatim to the end of the command line).
-    let args = format!("/S /D={}", target_dir.display());
-    let status = pb.suspend(|| {
-        if needs_elevation {
-            run_elevated(installer, &args)
-        } else {
-            // Rust would otherwise wrap an argument containing spaces in quotes,
-            // so pass the whole `/S /D=...` string through `raw_arg` verbatim.
-            let mut cmd = std::process::Command::new(installer);
-            cmd.raw_arg(&args);
-            cmd.status()
-                .context("failed to run install-houdini-launcher.exe")
-        }
-    })?;
-
-    if !status.success() {
-        // `run_elevated` maps a declined UAC prompt to ERROR_CANCELLED (1223).
-        if needs_elevation && status.code() == Some(1223) {
-            pb.finish_and_clear();
-            bail!("launcher install was cancelled at the administrator (UAC) prompt");
-        }
-        bail!("launcher installer failed with status {status}");
-    }
-
-    pb.finish_and_clear();
     println!("Successfully installed Houdini Launcher!");
 
     // Clean up the downloaded installer to match the macOS behaviour. It lives in
@@ -388,42 +347,8 @@ fn location_needs_admin(target_dir: &Path) -> bool {
     }
 }
 
-/// Runs `exe args` elevated via a UAC prompt and waits for it to finish,
-/// returning its exit status. Uses `Start-Process -Verb RunAs`, which is what
-/// triggers the consent dialog (a plain `CreateProcess` on an `asInvoker`
-/// binary can't self-elevate). The whole argument string is passed as a single
-/// `-ArgumentList` value so PowerShell forwards it verbatim, preserving the
-/// unquoted `/D=` path NSIS requires. A declined prompt is reported as exit
-/// code 1223 (ERROR_CANCELLED).
-#[cfg(target_os = "windows")]
-fn run_elevated(exe: &Path, args: &str) -> Result<std::process::ExitStatus> {
-    use base64::{Engine, engine::general_purpose::STANDARD};
-
-    // Single-quote for PowerShell; a literal quote is escaped by doubling it.
-    let quote = |s: &str| s.replace('\'', "''");
-    let script = format!(
-        "$ErrorActionPreference='Stop'; \
-         try {{ $p = Start-Process -FilePath '{exe}' -ArgumentList '{args}' -Verb RunAs -Wait -PassThru }} \
-         catch {{ exit 1223 }}; \
-         exit $p.ExitCode",
-        exe = quote(&exe.display().to_string()),
-        args = quote(args),
-    );
-
-    // `-EncodedCommand` takes base64 of the UTF-16LE script, sidestepping every
-    // layer of command-line quoting between here and PowerShell.
-    let utf16: Vec<u8> = script.encode_utf16().flat_map(u16::to_le_bytes).collect();
-    let encoded = STANDARD.encode(utf16);
-
-    std::process::Command::new("powershell.exe")
-        .args(["-NoProfile", "-NonInteractive", "-EncodedCommand"])
-        .arg(encoded)
-        .status()
-        .context("failed to launch elevated installer via PowerShell")
-}
-
 fn fetch_token(agent: &Agent, client_id: &str, client_secret: &str) -> Result<String> {
-    use base64::{Engine, engine::general_purpose::STANDARD};
+    use base64::{engine::general_purpose::STANDARD, Engine};
     let creds = STANDARD.encode(format!("{client_id}:{client_secret}"));
 
     let resp: TokenResponse = agent

@@ -15,6 +15,7 @@ pub mod package;
 mod project;
 mod settings;
 mod sidefx;
+pub mod elevated_command;
 
 pub fn main() -> Result<()> {
     env_logger::init();

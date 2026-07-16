@@ -21,7 +21,7 @@ pub struct PackageCmd {
     /// Houdini version filter (inside a project requires --global).
     #[arg(short, long, global = true)]
     pub version: Option<String>,
-    /// Skip patching package json files after install/update/sync.
+    /// Skip patching package JSON files after install/update/sync.
     #[arg(long, global = true)]
     pub no_patch: bool,
 
@@ -47,7 +47,7 @@ pub enum PackageAction {
 pub struct InstallArgs {
     /// URL, git repo path, or folder path.
     pub source: String,
-    /// Override the package name used for the install directory.
+    /// Override the package name used for the installation directory.
     #[arg(long)]
     pub name: Option<String>,
     /// Specific tag (or raw commit) to install.

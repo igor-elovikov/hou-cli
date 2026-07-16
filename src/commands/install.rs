@@ -2,7 +2,7 @@ use crate::hou::Context;
 use crate::installations::InstalledProduct;
 use crate::settings::Settings;
 use crate::sidefx::{Houdini, Platform, Product, Status};
-use anyhow::{Context as _, Result, anyhow, bail};
+use anyhow::{anyhow, bail, Context as _, Result};
 use clap::Args;
 use console::style;
 use semver::Version;
@@ -41,7 +41,7 @@ impl InstallCmd {
 
         let settings_file = credentials_ini(&settings)?;
         println!("Installing Houdini {}...", style(&version).green());
-        ctx.installer
+        ctx.installer()?
             .install_houdini(&version.to_string(), settings_file.path(), &eulas)?;
         println!("Installed Houdini {}", style(&version).green());
         Ok(())

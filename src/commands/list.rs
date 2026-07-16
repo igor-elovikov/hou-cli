@@ -28,7 +28,7 @@ struct ListOutput {
 impl ListCmd {
     pub fn run(self, ctx: &Context) -> Result<()> {
         let launcher = ctx
-            .installer
+            .installer()?
             .version()
             .map(|v| v.to_string())
             .unwrap_or_else(|_| "unknown".to_string());
@@ -47,7 +47,7 @@ impl ListCmd {
             "{} {}  {}",
             style("Launcher").bold().cyan(),
             style(&launcher).bold(),
-            style(ctx.installer.path().display()).dim(),
+            style(ctx.installer()?.path().display()).dim(),
         );
         println!("{}", style("Installed Products").bold());
         if entries.is_empty() {

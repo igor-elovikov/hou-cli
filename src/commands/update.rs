@@ -5,7 +5,7 @@ use console::style;
 
 /// Updates the SideFX launcher to the latest production build.
 pub fn update(ctx: &crate::hou::Context) -> Result<()> {
-    let current = ctx.installer.version()?;
+    let current = ctx.installer()?.version()?;
 
     let settings = Settings::load(&ctx.config_dir)?;
     let (client_id, client_secret) = settings.require_oauth()?;
@@ -38,7 +38,7 @@ pub fn update(ctx: &crate::hou::Context) -> Result<()> {
     // (e.g. /opt/sidefx/launcher); reinstalling there needs elevation, which
     // install_launcher handles.
     let target = ctx
-        .installer
+        .installer()?
         .launcher_dir()
         .unwrap_or_else(|| crate::installer::default_launcher_dir(&ctx.data_dir));
     let kind = if target.starts_with(&ctx.data_dir) {

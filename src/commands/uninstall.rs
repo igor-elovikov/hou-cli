@@ -17,7 +17,7 @@ impl UninstallCmd {
             style(&houdini.version).green(),
             style(houdini.path.display()).dim(),
         );
-        ctx.installer.uninstall(&houdini.path)?;
+        ctx.installer()?.uninstall(&houdini.path)?;
         println!("Uninstalled Houdini {}", style(&houdini.version).green());
         Ok(())
     }
