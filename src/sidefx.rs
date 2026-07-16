@@ -2,17 +2,19 @@ mod build;
 mod download;
 mod products;
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::elevated_command::try_elevated_command;
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 pub use build::BuildsQuery;
 pub use download::{BuildDownload, BuildDownloadQuery, BuildSpec};
 use indicatif::{ProgressBar, ProgressStyle};
 pub use products::{Houdini, HoudiniLauncher, Platform, Product, Release, Status};
 use serde::Deserialize;
 use serde_json::Value;
-use std::ffi::OsString;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+#[cfg(target_os = "macos")]
+use std::time::Duration;
 use ureq::Agent;
 
 const TOKEN_URL: &str = "https://www.sidefx.com/oauth2/application_token";
@@ -223,12 +225,10 @@ fn install_launcher(dmg: &Path, target_dir: &Path) -> Result<PathBuf> {
                     "sudo needed to remove the old launcher and copy the new one to {}",
                     install_dir.display()
                 );
+                let app_dst_arg = app_dst.as_os_str().to_os_string();
                 let status = pb
                     .suspend(|| {
-                        crate::installer::elevated_command(Path::new("rm"), &reason)
-                            .arg("-rf")
-                            .arg(&app_dst)
-                            .status()
+                        try_elevated_command(Path::new("rm"), &["-rf".into(), app_dst_arg], &reason)
                     })
                     .context("failed to run rm for Houdini Launcher.app")?;
                 if !status.success() {
@@ -244,13 +244,15 @@ fn install_launcher(dmg: &Path, target_dir: &Path) -> Result<PathBuf> {
 
     pb.set_message("Copying Houdini Launcher (this may take a moment)...");
     let run_cp = || {
-        let mut cmd = if elevate {
-            // The rm above already explained the elevation.
-            crate::installer::elevated_command(Path::new("cp"), "")
-        } else {
-            std::process::Command::new("cp")
-        };
-        cmd.arg("-R").arg(&app_src).arg(install_dir).status()
+        try_elevated_command(
+            Path::new("cp"),
+            &[
+                "-R".into(),
+                app_src.as_os_str().to_os_string(),
+                install_dir.as_os_str().to_os_string(),
+            ],
+            "Copying Houdini Launcher requires admin privileges",
+        )
     };
     let copy_result = if elevate {
         pb.suspend(run_cp)
@@ -286,7 +288,6 @@ fn install_launcher(dmg: &Path, target_dir: &Path) -> Result<PathBuf> {
 
 #[cfg(target_os = "windows")]
 fn install_launcher(installer: &Path, target_dir: &Path) -> Result<PathBuf> {
-
     if !target_dir.is_absolute() {
         bail!(
             "launcher install path must be absolute on Windows, got {}",
@@ -348,7 +349,7 @@ fn location_needs_admin(target_dir: &Path) -> bool {
 }
 
 fn fetch_token(agent: &Agent, client_id: &str, client_secret: &str) -> Result<String> {
-    use base64::{engine::general_purpose::STANDARD, Engine};
+    use base64::{Engine, engine::general_purpose::STANDARD};
     let creds = STANDARD.encode(format!("{client_id}:{client_secret}"));
 
     let resp: TokenResponse = agent

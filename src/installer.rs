@@ -1,6 +1,6 @@
 use crate::elevated_command::try_elevated_command;
 use crate::installations::{HoudiniInstallation, Installation, InstalledProduct};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use is_executable::IsExecutable;
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -84,13 +84,10 @@ impl Installer {
             "Houdini".into(),
             "--version".into(),
             version.into(),
+            "--upgrade-hserver-if-needed".into(),
             "--settings-file".into(),
             settings_file.as_os_str().to_os_string(),
         ];
-        if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
-            args.push("--build-option".into());
-            args.push("M1".into());
-        }
         for date in eulas {
             args.push("--accept-EULA".into());
             args.push(date.into());
