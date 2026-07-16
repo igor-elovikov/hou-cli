@@ -4,6 +4,7 @@ mod products;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::elevated_command::try_elevated_command;
+use crate::elevated_command::try_elevated_command_with_path;
 use anyhow::{Context, Result, anyhow, bail};
 pub use build::BuildsQuery;
 pub use download::{BuildDownload, BuildDownloadQuery, BuildSpec};
@@ -158,20 +159,12 @@ fn install_launcher(installer: &Path, target_dir: &Path) -> Result<PathBuf> {
     std::fs::create_dir_all(parent)
         .with_context(|| format!("failed to create {}", parent.display()))?;
 
-    let status = crate::installer::elevated_command(
-        installer,
-        &format!(
-            "sudo needed to install the launcher to {}",
-            target_dir.display()
-        ),
-    )
-    .arg(name)
-    .current_dir(parent)
-    .status()
-    .context("failed to run install_houdini_launcher.sh")?;
-    if !status.success() {
-        bail!("launcher install script failed with status {status}");
-    }
+    let reason = format!(
+        "sudo needed to install the launcher to {}",
+        target_dir.display()
+    );
+
+    try_elevated_command_with_path(installer, &[name.into(), "-q".into()], &reason, &parent)?;
 
     Ok(target_dir.to_path_buf())
 }

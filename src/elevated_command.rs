@@ -20,6 +20,23 @@ pub fn try_elevated_command(
         ))
 }
 
+#[cfg(unix)]
+pub fn try_elevated_command_with_path(
+    exe: &Path,
+    args: &[OsString],
+    reason: &str,
+    path: &Path,
+) -> anyhow::Result<ExitStatus> {
+    elevated_command(exe, reason)
+        .args(args)
+        .current_dir(path)
+        .status()
+        .context(format!(
+            "Failed to elevate command: {}",
+            exe.to_string_lossy()
+        ))
+}
+
 #[cfg(windows)]
 pub fn try_elevated_command(
     exe: &Path,

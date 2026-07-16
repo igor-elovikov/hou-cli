@@ -78,6 +78,9 @@ impl Installer {
         settings_file: &Path,
         eulas: &[String],
     ) -> Result<()> {
+
+
+
         let mut args: Vec<OsString> = vec![
             "install".into(),
             "--product".into(),
@@ -88,6 +91,20 @@ impl Installer {
             "--settings-file".into(),
             settings_file.as_os_str().to_os_string(),
         ];
+
+        if cfg!(target_os = "linux") {
+            let semver = semver::Version::parse(version)?;
+            if semver.major >= 22 {
+                args.push("--platform".into());
+                if cfg!(target_arch = "aarch64") {
+                    args.push("linux_arm64_gcc14.2".into());
+                } else {
+                    args.push("linux_x86_64_gcc14.2".into());
+                }
+
+            }
+        }
+
         for date in eulas {
             args.push("--accept-EULA".into());
             args.push(date.into());

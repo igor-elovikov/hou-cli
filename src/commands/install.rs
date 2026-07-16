@@ -24,7 +24,7 @@ impl InstallCmd {
         let version = self.resolve_version(&settings)?;
 
         let already_installed = ctx.products.iter().any(|p| match p {
-            InstalledProduct::Houdini(h) => h.version == version,
+            InstalledProduct::Houdini(h) => h.version == version && h.ready(),
             _ => false,
         });
         if already_installed {
