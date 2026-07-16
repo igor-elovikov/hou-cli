@@ -119,18 +119,13 @@ impl Client {
     ) -> Result<PathBuf> {
         let platform = Platform::host()?;
 
-        let launcher_platform = match platform {
-            Platform::Macos | Platform::MacosxArm64 => Platform::Macos,
-            other => other,
-        };
-
         let info = self
             .build_download(
                 Product::HoudiniLauncher(launcher),
                 version,
                 BuildSpec::Production,
             )
-            .platform(launcher_platform)
+            .platform(platform)
             .send()?;
 
         let build = self.download_build(&info, staging_dir)?;
