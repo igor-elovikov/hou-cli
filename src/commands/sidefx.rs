@@ -1,8 +1,9 @@
 use crate::hou::Context;
 use crate::settings::Settings;
-use crate::sidefx::{Platform, Product};
+use crate::sidefx::{BuildSpec, Platform, Product};
 use anyhow::Result;
 use clap::{Args, Subcommand};
+use std::path::PathBuf;
 
 #[derive(Args)]
 struct Builds {
@@ -15,10 +16,24 @@ struct Builds {
     platform: Option<Platform>,
 }
 
+#[derive(Args)]
+struct Download {
+    product: Product,
+    /// major.minor (e.g. 21.0) for the latest production build, or
+    /// major.minor.build (e.g. 21.0.729) for a specific build.
+    version: String,
+    /// Target platform (defaults to the host platform).
+    #[arg(short, long)]
+    platform: Option<Platform>,
+    /// Directory to download into (defaults to the current directory).
+    #[arg(short, long)]
+    output: Option<PathBuf>,
+}
+
 #[derive(Subcommand)]
 enum SideFXCommand {
     Builds(Builds),
-    Download,
+    Download(Download),
 }
 
 #[derive(Args)]
@@ -55,7 +70,41 @@ impl SideFX {
 
                 Ok(())
             }
-            SideFXCommand::Download => Ok(()),
+            SideFXCommand::Download(args) => {
+                let (version, build) = split_version(&args.version);
+                let platform = match args.platform {
+                    Some(p) => p,
+                    None => Platform::host()?,
+                };
+
+                let info = client
+                    .build_download(args.product, version, build)
+                    .platform(platform)
+                    .send()?;
+
+                let dir = match args.output {
+                    Some(d) => d,
+                    None => std::env::current_dir()?,
+                };
+
+                println!("Downloading {} ({} bytes)...", info.filename, info.size);
+                let path = client.download_build(&info, &dir)?;
+                println!("Saved to {}", path.display());
+
+                Ok(())
+            }
         }
     }
+}
+
+/// Splits `major.minor.build` into the API version and an explicit build,
+/// falling back to `major.minor` plus the latest production build.
+fn split_version(s: &str) -> (String, BuildSpec) {
+    let parts: Vec<&str> = s.split('.').collect();
+    if parts.len() >= 3 {
+        if let Ok(build) = parts[2].parse::<u32>() {
+            return (format!("{}.{}", parts[0], parts[1]), BuildSpec::Number(build));
+        }
+    }
+    (s.to_string(), BuildSpec::Production)
 }

@@ -6,7 +6,6 @@ use serde_json::Value;
 
 #[derive(Debug, Clone, Copy)]
 pub enum BuildSpec {
-    #[allow(dead_code)]
     Number(u32),
     Production,
 }
