@@ -35,7 +35,7 @@ impl Context {
         let mut installer: Option<Installer> = None;
         let mut products = Vec::new();
 
-        if let Ok(discovered_installer) = Installer::discover(&data_dir) {
+        if let Ok(discovered_installer) = Installer::discover() {
             log::info!("Installer discovered: {:?}", discovered_installer);
             let installed_products = discovered_installer.products()?;
             log::info!("Products installed: {:#?}", installed_products);

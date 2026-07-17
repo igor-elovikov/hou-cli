@@ -4,7 +4,6 @@ use commands::{Cli, Commands, setup::setup, update::update};
 use console::style;
 use project::Project;
 use std::env;
-use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 mod commands;
@@ -16,6 +15,7 @@ mod project;
 mod settings;
 mod sidefx;
 pub mod elevated_command;
+pub mod config;
 
 pub fn main() -> Result<()> {
     env_logger::init();

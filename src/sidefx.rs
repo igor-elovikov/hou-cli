@@ -2,6 +2,8 @@ mod build;
 mod download;
 mod products;
 
+#[cfg(target_os = "windows")]
+use std::ffi::OsString;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::elevated_command::try_elevated_command;
 #[cfg(target_os = "linux")]

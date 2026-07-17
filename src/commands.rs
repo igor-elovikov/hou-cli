@@ -37,17 +37,21 @@ pub enum Commands {
 }
 
 #[derive(Parser)]
-#[command(args_conflicts_with_subcommands = true)]
 pub struct Cli {
     #[clap(subcommand)]
     pub command: Option<Commands>,
-    #[arg(short, long)]
+
+    #[arg(short, long, global = true)]
     pub version: Option<String>,
+
     /// Keep stdio attached to the terminal and wait for Houdini to exit.
-    #[arg(short, long)]
+    #[arg(short, long, conflicts_with = "command")]
     pub attach: bool,
+
     /// Optional file (e.g. a .hip file) or project directory to open.
+    #[arg(conflicts_with = "command")]
     pub file: Option<String>,
+
     /// Arguments forwarded to Houdini; everything after `--`.
     #[arg(last = true)]
     pub houdini_args: Vec<String>,

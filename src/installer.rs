@@ -1,6 +1,6 @@
 use crate::elevated_command::try_elevated_command;
 use crate::installations::{HoudiniInstallation, Installation, InstalledProduct};
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use is_executable::IsExecutable;
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -41,25 +41,16 @@ struct OverviewEntry {
 }
 
 impl Installer {
-    pub fn discover(data_path: &Path) -> Result<Self> {
-        let candidates = Self::candidate_paths(data_path);
+    pub fn discover() -> Result<Self> {
+        let path = Self::candidate_path();
 
-        for path in &candidates {
-            if path.is_executable() {
-                return Ok(Self {
-                    installer_exe: path.clone(),
-                });
-            }
+        if path.is_executable() {
+            return Ok(Self {
+                installer_exe: path.clone(),
+            });
         }
 
-        bail!(
-            "No houdini_installer found. Searched:\n{}",
-            candidates
-                .iter()
-                .map(|p| format!("  - {}", p.display()))
-                .collect::<Vec<_>>()
-                .join("\n")
-        );
+        bail!("No houdini_installer found here: {}", path.display());
     }
 
     /// Installs a Houdini build with stdio inherited from the terminal.
@@ -69,9 +60,6 @@ impl Installer {
         settings_file: &Path,
         eulas: &[String],
     ) -> Result<()> {
-
-
-
         let mut args: Vec<OsString> = vec![
             "install".into(),
             "--product".into(),
@@ -92,7 +80,6 @@ impl Installer {
                 } else {
                     args.push("linux_x86_64_gcc14.2".into());
                 }
-
             }
         }
 
@@ -227,40 +214,18 @@ impl Installer {
             .join("data/overview.json"))
     }
 
-    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
-    fn overview_path() -> PathBuf {
-        unimplemented!("Overview path not implemented for this platform")
-    }
-
     #[cfg(target_os = "macos")]
-    fn candidate_paths(data_path: &Path) -> Vec<PathBuf> {
-        vec![
-            data_path
-                .join(INSTALLER_DIR)
-                .join("Houdini Launcher.app/Contents/MacOS/houdini_installer"),
-            PathBuf::from("/Applications/Houdini Launcher.app/Contents/MacOS/houdini_installer"),
-        ]
+    fn candidate_path() -> PathBuf {
+        PathBuf::from("/Applications/Houdini Launcher.app/Contents/MacOS/houdini_installer")
     }
 
     #[cfg(target_os = "linux")]
-    fn candidate_paths(data_path: &Path) -> Vec<PathBuf> {
-        vec![
-            data_path
-                .join(INSTALLER_DIR)
-                .join("houdini_launcher/bin/houdini_installer"),
-            PathBuf::from("/opt/sidefx/launcher/bin/houdini_installer"),
-        ]
+    fn candidate_path() -> PathBuf {
+        PathBuf::from("/opt/sidefx/launcher/bin/houdini_installer")
     }
 
     #[cfg(target_os = "windows")]
-    fn candidate_paths(data_path: &Path) -> Vec<PathBuf> {
-        vec![
-            data_path
-                .join(INSTALLER_DIR)
-                .join("houdini_launcher/bin/houdini_installer.exe"),
-            PathBuf::from(
-                r"C:\Program Files\Side Effects Software\Launcher\bin\houdini_installer.exe",
-            ),
-        ]
+    fn candidate_path() -> PathBuf {
+        PathBuf::from(r"C:\Program Files\Side Effects Software\Launcher\bin\houdini_installer.exe")
     }
 }

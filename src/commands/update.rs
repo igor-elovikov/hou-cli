@@ -12,10 +12,6 @@ pub fn update(ctx: &crate::hou::Context) -> Result<()> {
     let client = crate::sidefx::Client::new(&client_id, &client_secret)?;
 
     let launcher_platform = Platform::host()?;
-    // let launcher_platform = match host_platform {
-    //     Platform::Macos | Platform::MacosxArm64 => Platform::Macos,
-    //     other => other,
-    // };
 
     let builds = client
         .builds(Product::HoudiniLauncher(HoudiniLauncher::Default))
