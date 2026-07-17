@@ -1,11 +1,11 @@
-use crate::settings::Settings;
+use crate::credentials::CredentialSettings;
+use crate::installer::Installer;
 use crate::sidefx::{HoudiniLauncher, Platform, Product};
 use anyhow::{Context, Result};
 use console::style;
-use crate::installer::Installer;
 
 pub fn setup(ctx: &crate::hou::Context) -> Result<()> {
-    let settings = Settings::load(&ctx.config_dir)?;
+    let settings = CredentialSettings::load(&ctx.config_dir)?;
     let (client_id, client_secret) = settings.require_oauth()?;
     let client = crate::sidefx::Client::new(&client_id, &client_secret)?;
     let launcher = Product::HoudiniLauncher(HoudiniLauncher::Default);

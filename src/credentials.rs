@@ -18,12 +18,12 @@ struct Credentials {
     accept_eula: Vec<String>,
 }
 
-pub struct Settings {
+pub struct CredentialSettings {
     path: PathBuf,
     credentials: Credentials,
 }
 
-impl Settings {
+impl CredentialSettings {
     pub fn load(config_dir: &Path) -> Result<Self> {
         let path = config_dir.join(CREDENTIALS_TOML);
         let credentials = if path.exists() {

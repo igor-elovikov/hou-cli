@@ -1,5 +1,5 @@
+use crate::credentials::CredentialSettings;
 use crate::hou::Context;
-use crate::settings::Settings;
 use anyhow::Result;
 use clap::{Args, Subcommand};
 use console::style;
@@ -32,7 +32,7 @@ struct OauthArgs {
 
 impl LoginCmd {
     pub fn run(self, ctx: &Context) -> Result<()> {
-        let mut settings = Settings::load(&ctx.config_dir)?;
+        let mut settings = CredentialSettings::load(&ctx.config_dir)?;
         match self.command {
             LoginKind::User(a) => {
                 settings.set_user_login(&a.username, &a.password);

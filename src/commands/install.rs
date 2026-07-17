@@ -1,8 +1,8 @@
+use crate::credentials::CredentialSettings;
 use crate::hou::Context;
 use crate::installations::InstalledProduct;
-use crate::settings::Settings;
 use crate::sidefx::{Houdini, Platform, Product, Status};
-use anyhow::{anyhow, bail, Context as _, Result};
+use anyhow::{Context as _, Result, anyhow, bail};
 use clap::Args;
 use console::style;
 use semver::Version;
@@ -20,7 +20,7 @@ pub struct InstallCmd {
 
 impl InstallCmd {
     pub fn run(self, ctx: &Context) -> Result<()> {
-        let settings = Settings::load(&ctx.config_dir)?;
+        let settings = CredentialSettings::load(&ctx.config_dir)?;
         let version = self.resolve_version(&settings)?;
 
         let already_installed = ctx.products.iter().any(|p| match p {
@@ -48,7 +48,7 @@ impl InstallCmd {
     }
 
     /// Resolves the version to install; queries the SideFX API unless a full version is given.
-    fn resolve_version(&self, settings: &Settings) -> Result<Version> {
+    fn resolve_version(&self, settings: &CredentialSettings) -> Result<Version> {
         if let Some(v) = &self.version {
             if let Ok(full) = Version::parse(v) {
                 return Ok(full);
@@ -83,7 +83,7 @@ impl InstallCmd {
 }
 
 /// Writes credentials and accepted EULAs to a temp ini for houdini_installer.
-fn credentials_ini(settings: &Settings) -> Result<NamedTempFile> {
+fn credentials_ini(settings: &CredentialSettings) -> Result<NamedTempFile> {
     let mut text = String::new();
     if let (Some(id), Some(secret)) = (settings.client_id(), settings.client_secret()) {
         text.push_str(&format!("client_id={id}\nclient_secret={secret}\n"));

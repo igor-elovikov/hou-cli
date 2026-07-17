@@ -7,15 +7,15 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 mod commands;
+pub mod config;
+mod credentials;
+pub mod elevated_command;
 mod hou;
 mod installations;
 mod installer;
 pub mod package;
 mod project;
-mod settings;
 mod sidefx;
-pub mod elevated_command;
-pub mod config;
 
 pub fn main() -> Result<()> {
     env_logger::init();
@@ -69,8 +69,7 @@ pub fn main() -> Result<()> {
     };
 
     // explicit --global package scope escapes the project version pin
-    let global_package_scope =
-        matches!(&cli.command, Some(Commands::Package(cmd)) if cmd.global);
+    let global_package_scope = matches!(&cli.command, Some(Commands::Package(cmd)) if cmd.global);
 
     let version_filter = match (&project, user_version) {
         (Some(_), Some(v)) if global_package_scope => Some(v),

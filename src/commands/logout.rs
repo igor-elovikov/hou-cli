@@ -1,5 +1,5 @@
+use crate::credentials::CredentialSettings;
 use crate::hou::Context;
-use crate::settings::Settings;
 use anyhow::Result;
 use clap::Args;
 
@@ -8,7 +8,7 @@ pub struct LogoutCmd;
 
 impl LogoutCmd {
     pub fn run(self, ctx: &Context) -> Result<()> {
-        let removed = Settings::delete(&ctx.config_dir)?;
+        let removed = CredentialSettings::delete(&ctx.config_dir)?;
         if removed {
             println!("Cleared SideFX WebAPI settings");
         } else {
