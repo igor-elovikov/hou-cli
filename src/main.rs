@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use clap::Parser;
-use commands::{Cli, Commands, setup::setup, update::update};
+use commands::{Cli, Commands};
 use console::style;
 use project::Project;
 use std::env;
@@ -96,8 +96,7 @@ pub fn main() -> Result<()> {
         Some(Commands::Sidefx(cmd)) => {
             cmd.run(&hou)?;
         }
-        Some(Commands::Setup) => setup(&hou)?,
-        Some(Commands::Update) => update(&hou)?,
+        Some(Commands::Launcher(cmd)) => cmd.run(&hou)?,
         Some(Commands::Init(cmd)) => cmd.run(&hou, version_filter.as_deref())?,
         Some(Commands::Package(cmd)) => {
             let houdini = hou.resolve_houdini(version_filter.as_deref())?;

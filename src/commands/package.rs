@@ -32,14 +32,19 @@ pub struct PackageCmd {
 #[derive(Subcommand)]
 pub enum PackageAction {
     /// Install a package from a URL, local git repo, or folder.
+    #[command(visible_alias = "i")]
     Install(InstallArgs),
     /// Remove a package by name or install path.
+    #[command(visible_alias = "rm")]
     Uninstall(UninstallArgs),
     /// Update a git package to a new version.
+    #[command(visible_alias = "u")]
     Update(UpdateArgs),
     /// List installed packages.
+    #[command(visible_alias = "ls")]
     List,
     /// Re-fetch any git package whose cache dir is missing or has a checksum mismatch.
+    #[command(visible_alias = "s")]
     Sync,
 }
 

@@ -1,5 +1,5 @@
 use crate::installations::{HoudiniInstallation, InstalledProduct};
-use crate::installer::Installer;
+use crate::installer::Launcher;
 use anyhow::Context as _;
 use anyhow::{Result, anyhow};
 use directories::ProjectDirs;
@@ -10,7 +10,7 @@ use std::path::PathBuf;
 pub struct Context {
     pub config_dir: PathBuf,
     pub data_dir: PathBuf,
-    pub installer: Option<Installer>,
+    pub installer: Option<Launcher>,
     pub products: Vec<InstalledProduct>,
 }
 
@@ -32,10 +32,10 @@ impl Context {
         fs::create_dir_all(&data_dir)
             .with_context(|| format!("Failed to create data directory at {:?}", data_dir))?;
 
-        let mut installer: Option<Installer> = None;
+        let mut installer: Option<Launcher> = None;
         let mut products = Vec::new();
 
-        if let Ok(discovered_installer) = Installer::discover() {
+        if let Ok(discovered_installer) = Launcher::discover() {
             log::info!("Installer discovered: {:?}", discovered_installer);
             let installed_products = discovered_installer.products()?;
             log::info!("Products installed: {:#?}", installed_products);
@@ -52,7 +52,7 @@ impl Context {
         })
     }
 
-    pub fn installer(&self) -> Result<&Installer> {
+    pub fn installer(&self) -> Result<&Launcher> {
         self.installer.as_ref().ok_or_else(|| anyhow!("No installer found. Install from sidefx.com or run `hou setup` to install the launcher."))
     }
 

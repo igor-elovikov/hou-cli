@@ -1,9 +1,9 @@
 use crate::elevated_command::try_elevated_command;
 use crate::installations::{HoudiniInstallation, Installation, InstalledProduct};
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use is_executable::IsExecutable;
 #[cfg(target_os = "windows")]
-use known_folders::{KnownFolder, get_known_folder_path};
+use known_folders::{get_known_folder_path, KnownFolder};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::ffi::OsString;
@@ -12,8 +12,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 
 #[derive(Debug)]
-pub struct Installer {
+pub struct Launcher {
     installer_exe: PathBuf,
+    launcher_exe: PathBuf,
 }
 
 #[derive(Debug, Deserialize)]
@@ -28,17 +29,29 @@ struct OverviewEntry {
     ready: bool,
 }
 
-impl Installer {
+impl Launcher {
     pub fn discover() -> Result<Self> {
-        let path = Self::default_path();
+        let installer_exe = Self::default_path();
 
-        if path.is_executable() {
-            return Ok(Self {
-                installer_exe: path.clone(),
+        if installer_exe.is_executable() {
+            let launcher_exe = installer_exe.with_file_name(if cfg!(windows) {
+                "houdini_launcher.exe"
+            } else {
+                "houdini_launcher"
             });
+
+            if launcher_exe.is_executable() {
+                return Ok(Self {
+                    installer_exe: installer_exe.clone(),
+                    launcher_exe: launcher_exe.clone(),
+                });
+            }
         }
 
-        bail!("No houdini_installer found here: {}", path.display());
+        bail!(
+            "No Houdini Launcher found here: {}",
+            installer_exe.display()
+        );
     }
 
     /// Installs a Houdini build with stdio inherited from the terminal.
@@ -124,6 +137,25 @@ impl Installer {
 
     fn run_installer(&self, args: &[OsString], reason: &str) -> Result<ExitStatus> {
         try_elevated_command(&self.installer_exe, args, reason)
+    }
+
+    pub fn run_launcher(&self, args: &[String]) -> Result<ExitStatus> {
+        Command::new(&self.launcher_exe)
+            .args(args)
+            .status()
+            .with_context(|| format!("Failed to run launcher at {}", self.launcher_exe.display()))
+    }
+
+    pub fn run_installer_bare(&self, args: &[String]) -> Result<ExitStatus> {
+        Command::new(&self.installer_exe)
+            .args(args)
+            .status()
+            .with_context(|| {
+                format!(
+                    "Failed to run installer at {}",
+                    self.installer_exe.display()
+                )
+            })
     }
 
     pub fn products(&self) -> Result<Vec<InstalledProduct>> {

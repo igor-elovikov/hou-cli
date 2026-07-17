@@ -9,25 +9,31 @@ pub mod login;
 pub mod logout;
 mod package;
 mod run;
-pub mod setup;
 mod sidefx;
 pub mod uninstall;
-pub mod update;
+pub mod launcher;
 
 #[derive(Subcommand)]
 pub enum Commands {
-    Setup,
-    /// Update the SideFX launcher to the latest production build.
-    Update,
+    Launcher(launcher::LauncherCmd),
+    /// Initialize project in directory
     Init(init::InitCmd),
+    /// Run anything from Houdini environment
+    #[command(visible_alias = "x")]
     Run(run::Run),
+    /// Calls to SideFX WebAPI. Builds list, downloading and changelog
     Sidefx(sidefx::SideFX),
+    /// Package management
+    #[command(visible_alias = "pm")]
     Package(package::PackageCmd),
     /// Install a Houdini build via the discovered installer.
+    #[command(visible_alias = "i")]
     Install(install::InstallCmd),
     /// Uninstall an installed Houdini build.
+    #[command(visible_alias = "rm")]
     Uninstall(uninstall::UninstallCmd),
     /// List installed Houdini products.
+    #[command(visible_alias = "ls")]
     List(list::ListCmd),
     /// Store SideFX credentials in the config-dir credentials.toml.
     Login(login::LoginCmd),
@@ -44,6 +50,7 @@ pub struct Cli {
     #[clap(subcommand)]
     pub command: Option<Commands>,
 
+    /// Houdini version to run command against
     #[arg(short, long, global = true)]
     pub version: Option<String>,
 
