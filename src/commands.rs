@@ -1,5 +1,6 @@
 pub use clap::{Parser, Subcommand};
 
+pub mod config;
 pub mod eula;
 pub mod init;
 pub mod install;
@@ -34,6 +35,8 @@ pub enum Commands {
     Logout(logout::LogoutCmd),
     /// Manage accepted SideFX EULA dates.
     Eula(eula::EulaCmd),
+    /// Read and write hou settings in the config-dir config.toml.
+    Config(config::ConfigCmd),
 }
 
 #[derive(Parser)]

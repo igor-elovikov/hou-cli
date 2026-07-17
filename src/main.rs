@@ -110,6 +110,7 @@ pub fn main() -> Result<()> {
         Some(Commands::Login(cmd)) => cmd.run(&hou)?,
         Some(Commands::Logout(cmd)) => cmd.run(&hou)?,
         Some(Commands::Eula(cmd)) => cmd.run(&hou)?,
+        Some(Commands::Config(cmd)) => cmd.run(&hou)?,
         None => {
             let houdini = hou.resolve_houdini(version_filter.as_deref())?;
             let forward_args = default_launch.map(|d| d.forward_args).unwrap_or_default();
