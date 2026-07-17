@@ -17,8 +17,6 @@ use serde::Deserialize;
 use serde_json::Value;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-#[cfg(target_os = "macos")]
-use std::time::Duration;
 use ureq::Agent;
 
 const TOKEN_URL: &str = "https://www.sidefx.com/oauth2/application_token";
@@ -170,13 +168,6 @@ fn install_launcher(installer: &Path, target_dir: &Path) -> Result<PathBuf> {
 
 #[cfg(target_os = "macos")]
 fn install_launcher(dmg: &Path, target_dir: &Path) -> Result<PathBuf> {
-    let pb = ProgressBar::new_spinner();
-    pb.enable_steady_tick(Duration::from_millis(120));
-    pb.set_style(
-        ProgressStyle::with_template("{spinner:.blue} {msg}")?
-            .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]),
-    );
-
     // `target_dir` is the directory that holds `Houdini Launcher.app`.
     let install_dir = target_dir;
     std::fs::create_dir_all(install_dir)
@@ -185,7 +176,7 @@ fn install_launcher(dmg: &Path, target_dir: &Path) -> Result<PathBuf> {
     // Mount the DMG next to the downloaded file, not under the install target.
     let staging_dir = dmg.parent().unwrap_or(install_dir);
 
-    pb.set_message("Mounting DMG...");
+    println!("Mounting DMG...");
     let mount_point = staging_dir.join(".launcher_dmg_mount");
     if mount_point.exists() {
         std::fs::remove_dir_all(&mount_point).ok();
@@ -208,21 +199,17 @@ fn install_launcher(dmg: &Path, target_dir: &Path) -> Result<PathBuf> {
     let app_dst = install_dir.join("Houdini Launcher.app");
     // System installs (e.g. /Applications) are root-owned; escalate when a
     // plain removal is denied and reuse the elevation for the copy.
-    let mut elevate = false;
     if app_dst.exists() {
         match std::fs::remove_dir_all(&app_dst) {
             Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
-                elevate = true;
                 let reason = format!(
                     "sudo needed to remove the old launcher and copy the new one to {}",
                     install_dir.display()
                 );
                 let app_dst_arg = app_dst.as_os_str().to_os_string();
-                let status = pb
-                    .suspend(|| {
-                        try_elevated_command(Path::new("rm"), &["-rf".into(), app_dst_arg], &reason)
-                    })
-                    .context("failed to run rm for Houdini Launcher.app")?;
+                let status =
+                    try_elevated_command(Path::new("rm"), &["-rf".into(), app_dst_arg], &reason)
+                        .context("failed to run rm for Houdini Launcher.app")?;
                 if !status.success() {
                     bail!(
                         "failed to remove {} (rm exited with {status})",
@@ -234,26 +221,19 @@ fn install_launcher(dmg: &Path, target_dir: &Path) -> Result<PathBuf> {
         }
     }
 
-    pb.set_message("Copying Houdini Launcher (this may take a moment)...");
-    let run_cp = || {
-        try_elevated_command(
-            Path::new("cp"),
-            &[
-                "-R".into(),
-                app_src.as_os_str().to_os_string(),
-                install_dir.as_os_str().to_os_string(),
-            ],
-            "Copying Houdini Launcher requires admin privileges",
-        )
-    };
-    let copy_result = if elevate {
-        pb.suspend(run_cp)
-    } else {
-        run_cp()
-    }
+    println!("Copying Houdini Launcher (this may take a moment)...");
+    let copy_result = try_elevated_command(
+        Path::new("cp"),
+        &[
+            "-R".into(),
+            app_src.as_os_str().to_os_string(),
+            install_dir.as_os_str().to_os_string(),
+        ],
+        "Copying Houdini Launcher requires admin privileges",
+    )
     .context("failed to run cp for Houdini Launcher.app");
 
-    pb.set_message("Unmounting and cleaning up...");
+    println!("Unmounting and cleaning up...");
     let detach_status = std::process::Command::new("hdiutil")
         .args(["detach", "-quiet"])
         .arg(&mount_point)
@@ -272,7 +252,6 @@ fn install_launcher(dmg: &Path, target_dir: &Path) -> Result<PathBuf> {
 
     std::fs::remove_file(dmg).with_context(|| format!("failed to remove {}", dmg.display()))?;
 
-    pb.finish_and_clear();
     println!("Successfully installed Houdini Launcher!");
 
     Ok(app_dst)

@@ -32,7 +32,7 @@ pub fn update(ctx: &crate::hou::Context) -> Result<()> {
     // Refresh the launcher where it was discovered
     let target = ctx
         .installer()?
-        .launcher_dir()
+        .current_install_path()
         .context("Failed to get launcher dir")?;
 
     println!(

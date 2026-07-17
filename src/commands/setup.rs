@@ -12,14 +12,9 @@ pub fn setup(ctx: &crate::hou::Context) -> Result<()> {
 
     let host_platform = Platform::host()?;
 
-    let launcher_platform = match host_platform {
-        Platform::Macos | Platform::MacosxArm64 => Platform::Macos,
-        other => other,
-    };
-
     let builds = client
         .builds(launcher)
-        .platform(launcher_platform)
+        .platform(host_platform)
         .only_production()
         .send()?;
 
@@ -33,13 +28,11 @@ pub fn setup(ctx: &crate::hou::Context) -> Result<()> {
 
     println!("Found launcher version: {}", style(latest_version).green());
 
-    let target = Installer::default_path();
-
     client.install_launcher(
         HoudiniLauncher::Default,
         latest_major,
         &ctx.data_dir,
-        &target,
+        &Installer::install_path(),
     )?;
 
     Ok(())

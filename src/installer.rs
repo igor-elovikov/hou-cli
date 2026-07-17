@@ -1,15 +1,15 @@
 use crate::elevated_command::try_elevated_command;
 use crate::installations::{HoudiniInstallation, Installation, InstalledProduct};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use is_executable::IsExecutable;
+#[cfg(target_os = "windows")]
+use known_folders::{KnownFolder, get_known_folder_path};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
-#[cfg(target_os = "windows")]
-use known_folders::{get_known_folder_path, KnownFolder};
 
 #[derive(Debug)]
 pub struct Installer {
@@ -89,7 +89,7 @@ impl Installer {
     }
 
     /// Returns the launcher directory
-    pub fn launcher_dir(&self) -> Option<PathBuf> {
+    pub fn current_install_path(&self) -> Option<PathBuf> {
         let depth = if cfg!(target_os = "macos") { 4 } else { 2 };
         self.installer_exe
             .ancestors()
@@ -203,6 +203,21 @@ impl Installer {
     }
 
     #[cfg(target_os = "macos")]
+    pub fn install_path() -> PathBuf {
+        PathBuf::from("/Applications")
+    }
+    #[cfg(target_os = "linux")]
+    pub fn install_path() -> PathBuf {
+        PathBuf::from("/opt/sidefx")
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn install_path() -> PathBuf {
+        get_known_folder_path(KnownFolder::ProgramFiles)
+            .unwrap_or_else(|| PathBuf::from(r"C:\Program Files"))
+    }
+
+    #[cfg(target_os = "macos")]
     pub fn default_path() -> PathBuf {
         PathBuf::from("/Applications/Houdini Launcher.app/Contents/MacOS/houdini_installer")
     }
@@ -217,6 +232,10 @@ impl Installer {
         let program_files = get_known_folder_path(KnownFolder::ProgramFiles)
             .unwrap_or_else(|| PathBuf::from(r"C:\Program Files"));
 
-        program_files.join("Side Effects Software").join("Launcher").join("bin").join("houdini_installer.exe")
+        program_files
+            .join("Side Effects Software")
+            .join("Launcher")
+            .join("bin")
+            .join("houdini_installer.exe")
     }
 }
