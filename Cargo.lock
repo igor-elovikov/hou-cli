@@ -441,6 +441,7 @@ dependencies = [
  "indicatif",
  "is_executable",
  "itertools",
+ "known-folders",
  "log",
  "md5",
  "semver",
@@ -689,6 +690,15 @@ checksum = "2964e92d1d9dc3364cae4d718d93f227e3abb088e747d92e0395bfdedf1c12ca"
 dependencies = [
  "once_cell",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "known-folders"
+version = "1.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a1886916523694cd6ea3d175f03a1e5010699a2a4cc13696d83d7bea1d80638"
+dependencies = [
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

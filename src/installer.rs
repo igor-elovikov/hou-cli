@@ -8,6 +8,8 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
+#[cfg(target_os = "windows")]
+use known_folders::{get_known_folder_path, KnownFolder};
 
 #[derive(Debug)]
 pub struct Installer {
@@ -212,6 +214,9 @@ impl Installer {
 
     #[cfg(target_os = "windows")]
     pub fn default_path() -> PathBuf {
-        PathBuf::from(r"C:\Program Files\Side Effects Software\Launcher\bin\houdini_installer.exe")
+        let program_files = get_known_folder_path(KnownFolder::ProgramFiles)
+            .unwrap_or_else(|| PathBuf::from(r"C:\Program Files"));
+
+        program_files.join("Side Effects Software").join("Launcher").join("bin").join("houdini_installer.exe")
     }
 }

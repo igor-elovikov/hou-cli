@@ -29,6 +29,7 @@ xxhash-rust = { version = "0.8", features = ["xxh3"] }
 walkdir = "2.5"
 tempfile = "3"
 toml = "1.1.2"
+known-folders = "1.4.2"
 
 # The profile that 'dist' will build with
 [profile.dist]
