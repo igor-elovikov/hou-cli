@@ -2,6 +2,7 @@ use crate::settings::Settings;
 use crate::sidefx::{HoudiniLauncher, Platform, Product};
 use anyhow::{Context, Result};
 use console::style;
+use crate::installer::Installer;
 
 pub fn setup(ctx: &crate::hou::Context) -> Result<()> {
     let settings = Settings::load(&ctx.config_dir)?;
@@ -32,7 +33,7 @@ pub fn setup(ctx: &crate::hou::Context) -> Result<()> {
 
     println!("Found launcher version: {}", style(latest_version).green());
 
-    let target = crate::installer::default_launcher_dir(&ctx.data_dir);
+    let target = Installer::default_path();
 
     client.install_launcher(
         HoudiniLauncher::Default,

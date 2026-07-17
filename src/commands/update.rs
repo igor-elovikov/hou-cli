@@ -29,23 +29,14 @@ pub fn update(ctx: &crate::hou::Context) -> Result<()> {
         return Ok(());
     }
 
-    // Refresh the launcher where it was discovered, falling back to the default
-    // install location. A launcher outside the data dir is a system install
-    // (e.g. /opt/sidefx/launcher); reinstalling there needs elevation, which
-    // install_launcher handles.
+    // Refresh the launcher where it was discovered
     let target = ctx
         .installer()?
         .launcher_dir()
-        .unwrap_or_else(|| crate::installer::default_launcher_dir(&ctx.data_dir));
-    let kind = if target.starts_with(&ctx.data_dir) {
-        "launcher"
-    } else {
-        "system launcher"
-    };
+        .context("Failed to get launcher dir")?;
 
     println!(
-        "Updating {} {} -> {} at {}",
-        kind,
+        "Updating Launcher {} -> {} at {}",
         style(&current).yellow(),
         style(&latest.version).green(),
         style(target.display()).dim(),

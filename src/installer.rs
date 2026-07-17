@@ -9,20 +9,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 
-/// Subdirectory of the data dir where `hou` installs and discovers the
-/// SideFX launcher (both `houdini_installer` and `houdini_launcher` live here).
-pub const INSTALLER_DIR: &str = "installer";
-
-/// The `hou`-managed launcher install directory under `data_dir`
-pub fn default_launcher_dir(data_dir: &Path) -> PathBuf {
-    let base = data_dir.join(INSTALLER_DIR);
-    if cfg!(target_os = "macos") {
-        base
-    } else {
-        base.join("houdini_launcher")
-    }
-}
-
 #[derive(Debug)]
 pub struct Installer {
     installer_exe: PathBuf,
@@ -42,7 +28,7 @@ struct OverviewEntry {
 
 impl Installer {
     pub fn discover() -> Result<Self> {
-        let path = Self::candidate_path();
+        let path = Self::default_path();
 
         if path.is_executable() {
             return Ok(Self {
@@ -215,17 +201,17 @@ impl Installer {
     }
 
     #[cfg(target_os = "macos")]
-    fn candidate_path() -> PathBuf {
+    pub fn default_path() -> PathBuf {
         PathBuf::from("/Applications/Houdini Launcher.app/Contents/MacOS/houdini_installer")
     }
 
     #[cfg(target_os = "linux")]
-    fn candidate_path() -> PathBuf {
+    pub fn default_path() -> PathBuf {
         PathBuf::from("/opt/sidefx/launcher/bin/houdini_installer")
     }
 
     #[cfg(target_os = "windows")]
-    fn candidate_path() -> PathBuf {
+    pub fn default_path() -> PathBuf {
         PathBuf::from(r"C:\Program Files\Side Effects Software\Launcher\bin\houdini_installer.exe")
     }
 }

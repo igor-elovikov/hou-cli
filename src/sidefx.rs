@@ -112,10 +112,6 @@ impl Client {
 
     /// Downloads the launcher installer into `staging_dir` (must be writable)
     /// and installs it into `target_dir`. `target_dir` is the launcher directory
-    /// itself on Linux (e.g. `data_dir/installer/houdini_launcher` or
-    /// `/opt/sidefx/launcher`) and the directory that holds `Houdini Launcher.app`
-    /// on macOS. System targets are installed with elevation; see
-    /// [`crate::installer::elevated_command`].
     pub fn install_launcher(
         &self,
         launcher: HoudiniLauncher,
