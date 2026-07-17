@@ -103,6 +103,6 @@ impl<'a> BuildsQuery<'a> {
             Value::Object(kwargs),
         )?;
 
-        serde_json::from_value(result).context("failed to deserialize daily builds list")
+        serde_json::from_value(result).context("Failed to retrieve builds list")
     }
 }

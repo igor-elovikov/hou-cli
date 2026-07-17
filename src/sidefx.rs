@@ -165,7 +165,7 @@ fn install_launcher(installer: &Path, target_dir: &Path) -> Result<PathBuf> {
         target_dir.display()
     );
 
-    try_elevated_command_with_path(installer, &[name.into(), "-q".into()], &reason, &parent)?;
+    try_elevated_command_with_path(installer, &["-q".into(), name.into()], &reason, &parent)?;
 
     Ok(target_dir.to_path_buf())
 }
