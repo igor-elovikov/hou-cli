@@ -1,7 +1,7 @@
 use crate::installations::{HoudiniInstallation, InstalledProduct};
 use crate::installer::Installer;
 use anyhow::Context as _;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use directories::ProjectDirs;
 use std::fs;
 use std::path::PathBuf;

@@ -33,7 +33,8 @@ impl Config {
                 .with_context(|| format!("failed to create {}", parent.display()))?;
         }
         let text = toml::to_string_pretty(self).context("failed to serialize config")?;
-        std::fs::write(&path, text).with_context(|| format!("failed to write {}", path.display()))?;
+        std::fs::write(&path, text)
+            .with_context(|| format!("failed to write {}", path.display()))?;
         Ok(())
     }
 
@@ -44,10 +45,7 @@ impl Config {
     /// Value of `key` as a display string, or None if unset.
     pub fn get(&self, key: &str) -> Result<Option<String>> {
         Ok(match key {
-            "launcher_path" => self
-                .launcher_path
-                .as_ref()
-                .map(|p| p.display().to_string()),
+            "launcher_path" => self.launcher_path.as_ref().map(|p| p.display().to_string()),
             "use_api_keys" => self.use_api_keys.map(|v| v.to_string()),
             _ => bail!(unknown_key(key)),
         })
@@ -73,7 +71,10 @@ impl Config {
 }
 
 fn unknown_key(key: &str) -> String {
-    format!("unknown config key '{key}'; valid keys: {}", KEYS.join(", "))
+    format!(
+        "unknown config key '{key}'; valid keys: {}",
+        KEYS.join(", ")
+    )
 }
 
 fn parse_bool(value: &str) -> Result<bool> {
