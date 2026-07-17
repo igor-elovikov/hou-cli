@@ -13,11 +13,7 @@ use std::process::{Command, ExitStatus};
 /// SideFX launcher (both `houdini_installer` and `houdini_launcher` live here).
 pub const INSTALLER_DIR: &str = "installer";
 
-/// The `hou`-managed launcher install directory under `data_dir`, used by
-/// `setup` and as the fallback for `update`. Matches the local layout that
-/// [`Installer::candidate_paths`] discovers and that [`Installer::launcher_dir`]
-/// returns for a local install. The shape differs per platform (a bare dir on
-/// macOS that holds the `.app`, the launcher dir itself on Linux).
+/// The `hou`-managed launcher install directory under `data_dir`
 pub fn default_launcher_dir(data_dir: &Path) -> PathBuf {
     let base = data_dir.join(INSTALLER_DIR);
     if cfg!(target_os = "macos") {
@@ -67,11 +63,6 @@ impl Installer {
     }
 
     /// Installs a Houdini build with stdio inherited from the terminal.
-    /// Elevates with sudo on unix; the installer writes to system locations.
-    /// EULA dates go on the command line; the ini accept_eula key is ignored
-    /// by current installers despite being documented.
-    /// On Apple Silicon the M1 build option is mandatory: the x86_64-only
-    /// installer infers Intel under Rosetta (the GUI checkbox does the same).
     pub fn install_houdini(
         &self,
         version: &str,
@@ -122,14 +113,7 @@ impl Installer {
         &self.installer_exe
     }
 
-    /// Directory the discovered launcher is installed in, suitable to pass back
-    /// to [`crate::sidefx::Client::install_launcher`] as the install target.
-    /// `update` reinstalls here so a system launcher (e.g. `/opt/sidefx/launcher`)
-    /// is refreshed in place rather than shadowed by a local copy.
-    ///
-    /// On Linux this is the dir holding `bin/` (the discovered exe is at
-    /// `<dir>/bin/houdini_installer`). On macOS it is the dir holding
-    /// `Houdini Launcher.app` (exe at `<dir>/Houdini Launcher.app/Contents/MacOS/houdini_installer`).
+    /// Returns the launcher directory
     pub fn launcher_dir(&self) -> Option<PathBuf> {
         let depth = if cfg!(target_os = "macos") { 4 } else { 2 };
         self.installer_exe
