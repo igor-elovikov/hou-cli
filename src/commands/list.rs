@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use crate::hou::Context;
 use crate::installations::InstalledProduct;
 use anyhow::Result;
@@ -15,12 +16,7 @@ struct ProductEntry {
     name: &'static str,
     version: String,
     ready: bool,
-}
-
-#[derive(Serialize)]
-struct ListOutput {
-    launcher: String,
-    products: Vec<ProductEntry>,
+    path: PathBuf,
 }
 
 impl ListCmd {
@@ -46,16 +42,17 @@ impl ListCmd {
 
         for e in &entries {
             let ready = if e.ready {
-                style("Yes").green()
+                style("ready").green()
             } else {
-                style("No").red()
+                style("not ready").red()
             };
+
             println!(
-                "  {} {}  {}  {}{}",
+                "  {} {}  {} {} {}",
                 style("•").dim(),
                 style(e.name).bold().cyan(),
-                &e.version,
-                style("ready:").dim(),
+                style(&e.version).bold(),
+                style(e.path.display()).dim(),
                 ready,
             );
         }
@@ -69,26 +66,31 @@ fn product_entry(p: &InstalledProduct) -> ProductEntry {
             name: "Houdini",
             version: h.version.to_string(),
             ready: h.ready(),
+            path: h.path.clone()
         },
         InstalledProduct::HServer(i) => ProductEntry {
             name: "HServer",
             version: i.version.to_string(),
             ready: i.ready,
+            path: i.path.clone()
         },
         InstalledProduct::LicenseServer(i) => ProductEntry {
             name: "License Server",
             version: i.version.to_string(),
             ready: i.ready,
+            path: i.path.clone()
         },
         InstalledProduct::HQueueServer(i) => ProductEntry {
             name: "HQueue Server",
             version: i.version.to_string(),
             ready: i.ready,
+            path: i.path.clone()
         },
         InstalledProduct::HQueueClient(i) => ProductEntry {
             name: "HQueue Client",
             version: i.version.to_string(),
             ready: i.ready,
+            path: i.path.clone()
         },
     }
 }
