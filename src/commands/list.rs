@@ -7,9 +7,7 @@ use serde::Serialize;
 
 #[derive(Args)]
 pub struct ListCmd {
-    /// Output as JSON.
-    #[arg(long)]
-    pub json: bool,
+
 }
 
 #[derive(Serialize)]
@@ -33,15 +31,6 @@ impl ListCmd {
             .map(|v| v.to_string())
             .unwrap_or_else(|_| "unknown".to_string());
         let entries: Vec<ProductEntry> = ctx.products.iter().map(product_entry).collect();
-
-        if self.json {
-            let output = ListOutput {
-                launcher,
-                products: entries,
-            };
-            println!("{}", serde_json::to_string_pretty(&output)?);
-            return Ok(());
-        }
 
         println!(
             "{} {}  {}",

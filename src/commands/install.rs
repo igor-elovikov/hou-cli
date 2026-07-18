@@ -50,9 +50,7 @@ impl InstallCmd {
     /// Resolves the version to install; queries the SideFX API unless a full version is given.
     fn resolve_version(&self, settings: &CredentialSettings) -> Result<Version> {
         if let Some(v) = &self.version {
-            if let Ok(full) = Version::parse(v) {
-                return Ok(full);
-            }
+            return Ok(Version::parse(v)?);
         }
 
         let (client_id, client_secret) = settings.require_oauth()?;

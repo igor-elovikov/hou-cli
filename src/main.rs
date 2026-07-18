@@ -12,7 +12,7 @@ mod credentials;
 pub mod elevated_command;
 mod hou;
 mod installations;
-mod installer;
+mod launcher;
 pub mod package;
 mod project;
 mod sidefx;

@@ -4,7 +4,7 @@ use crate::credentials::CredentialSettings;
 use crate::sidefx::{HoudiniLauncher, Platform, Product};
 use anyhow::{Context, Result};
 use console::style;
-use crate::installer::Launcher;
+use crate::launcher::Launcher;
 
 #[derive(Subcommand)]
 pub enum LauncherAction {

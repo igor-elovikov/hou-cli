@@ -1,5 +1,5 @@
 use crate::installations::{HoudiniInstallation, InstalledProduct};
-use crate::installer::Launcher;
+use crate::launcher::Launcher;
 use anyhow::Context as _;
 use anyhow::{Result, anyhow};
 use directories::ProjectDirs;
