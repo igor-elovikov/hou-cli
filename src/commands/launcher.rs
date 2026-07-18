@@ -33,8 +33,14 @@ pub struct LauncherCmd {
 
 /// Set up the SideFX Launcher
 fn setup(ctx: &HouContext) -> Result<()> {
-    let settings = CredentialSettings::load(&ctx.config_dir)?;
-    let (client_id, client_secret) = settings.require_oauth()?;
+    let creds = CredentialSettings::load(&ctx.config_dir)?;
+
+    if ctx.installer.is_some() {
+        println!("SideFX Launcher is already installed, skipping setup.");
+        return Ok(());
+    }
+
+    let (client_id, client_secret) = creds.require_oauth()?;
     let client = crate::sidefx::Client::new(&client_id, &client_secret)?;
     let launcher = Product::HoudiniLauncher(HoudiniLauncher::Default);
 
