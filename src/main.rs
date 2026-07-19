@@ -17,6 +17,9 @@ pub mod package;
 mod project;
 mod sidefx;
 
+mod houdini;
+mod utils;
+
 pub fn main() -> Result<()> {
     env_logger::init();
     log::info!("Initializing...");
