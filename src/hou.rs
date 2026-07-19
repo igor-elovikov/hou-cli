@@ -1,11 +1,12 @@
 use crate::installations::{HoudiniInstallation, InstalledProduct};
 use crate::launcher::Launcher;
-use anyhow::{Context as _, bail};
-use anyhow::{Result, anyhow};
+use anyhow::{bail, Context as _};
+use anyhow::{anyhow, Result};
 use directories::ProjectDirs;
 use semver::VersionReq;
 use std::fs;
 use std::path::PathBuf;
+use crate::utils;
 
 #[derive(Debug)]
 pub struct Context {
@@ -66,7 +67,7 @@ impl Context {
     }
 
     pub fn resolve_product(&self, kind: &str, filter: Option<&str>) -> Result<&InstalledProduct> {
-        let normalized = normalize_filter(filter);
+        let normalized = utils::normalize_version_filter(filter);
 
         let req = VersionReq::parse(&normalized).with_context(|| "Invalid version requirement")?;
 
@@ -92,20 +93,3 @@ impl Context {
     }
 }
 
-fn normalize_filter(s: Option<&str>) -> String {
-    if let Some(s) = s {
-        // Leave explicit operators (^, >=, etc.) and wildcards untouched.
-        if !s.chars().next().map_or(false, |c| c.is_ascii_digit()) || s.contains('*') {
-            s.to_string()
-        }
-        // A fully specified version (major.minor.patch) must match exactly.
-        // Partial versions keep `~` for prefix matching, e.g. `21.0 matches all `21.0.x`.
-        else if s.split('.').count() >= 3 {
-            format!("={s}")
-        } else {
-            format!("~{s}")
-        }
-    } else {
-        "*".to_owned()
-    }
-}

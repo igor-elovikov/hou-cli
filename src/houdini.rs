@@ -1,14 +1,14 @@
 use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus};
-use anyhow::Context;
+use anyhow::{Context, Result};
 use semver::Version;
 use crate::installations::HoudiniInstallation;
 use crate::project::Project;
 use crate::utils::{env_paths_added, env_paths_prepended};
 
 impl HoudiniInstallation {
-    pub fn new(install_path: &str, version_str: &str, ready: bool) -> anyhow::Result<HoudiniInstallation> {
+    pub fn new(install_path: &str, version_str: &str, ready: bool) -> Result<HoudiniInstallation> {
         let path = PathBuf::from(install_path);
 
         let hfs = if cfg!(target_os = "macos") {
@@ -32,7 +32,7 @@ impl HoudiniInstallation {
     }
 
     #[cfg(target_os = "linux")]
-    fn user_prefs_dir(version: &Version) -> anyhow::Result<PathBuf> {
+    fn user_prefs_dir(version: &Version) -> Result<PathBuf> {
         let dirs =
             directories::BaseDirs::new().context("Failed to get user preference directory")?;
         let home = dirs.home_dir();
@@ -68,7 +68,7 @@ impl HoudiniInstallation {
         Ok(houdini_prefs)
     }
 
-    fn env(&self, project: Option<&Project>) -> anyhow::Result<Vec<(OsString, OsString)>> {
+    fn env(&self, project: Option<&Project>) -> Result<Vec<(OsString, OsString)>> {
         let bin_path = self.hfs.join("bin");
         let sbin_path = self.hfs.join("sbin");
         let hb = self.hfs.join("bin");
@@ -114,12 +114,12 @@ impl HoudiniInstallation {
         Ok(env)
     }
 
-    pub fn launch_houdini<I, S>(
+    pub fn launch<I, S>(
         &self,
         args: I,
         project: Option<&Project>,
         attach: bool,
-    ) -> anyhow::Result<()>
+    ) -> Result<()>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
@@ -150,14 +150,11 @@ impl HoudiniInstallation {
         Ok(())
     }
 
-    pub fn run(&self, mut cmd: Command, project: Option<&Project>) -> anyhow::Result<ExitStatus> {
+    pub fn run(&self, mut cmd: Command, project: Option<&Project>) -> Result<ExitStatus> {
         cmd.envs(self.env(project)?)
             .stdout(std::process::Stdio::inherit())
             .stderr(std::process::Stdio::inherit());
         cmd.status().context(format!("Failed to run {:?}", cmd))
     }
 
-    pub fn ready(&self) -> bool {
-        self.ready
-    }
 }

@@ -16,7 +16,6 @@ mod launcher;
 pub mod package;
 mod project;
 mod sidefx;
-
 mod houdini;
 mod utils;
 
@@ -115,7 +114,7 @@ pub fn main() -> Result<()> {
         None => {
             let houdini = hou.resolve_houdini(version_filter.as_deref())?;
             let forward_args = default_launch.map(|d| d.forward_args).unwrap_or_default();
-            houdini.launch_houdini(&forward_args, project.as_ref(), cli.attach)?;
+            houdini.launch(&forward_args, project.as_ref(), cli.attach)?;
         }
     }
 

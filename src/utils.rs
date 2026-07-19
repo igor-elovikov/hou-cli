@@ -27,3 +27,21 @@ pub fn env_paths_prepended<S: AsRef<OsStr>>(env_name: S, paths: &[PathBuf]) -> R
 
     env::join_paths(env_paths).context("Failed to join env path variable")
 }
+
+pub fn normalize_version_filter(s: Option<&str>) -> String {
+    if let Some(s) = s {
+        // Leave explicit operators (^, >=, etc.) and wildcards untouched.
+        if !s.chars().next().map_or(false, |c| c.is_ascii_digit()) || s.contains('*') {
+            s.to_string()
+        }
+        // A fully specified version (major.minor.patch) must match exactly.
+        // Partial versions keep `~` for prefix matching, e.g. `21.0 matches all `21.0.x`.
+        else if s.split('.').count() >= 3 {
+            format!("={s}")
+        } else {
+            format!("~{s}")
+        }
+    } else {
+        "*".to_owned()
+    }
+}

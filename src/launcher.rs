@@ -1,9 +1,10 @@
 use crate::elevated_command::try_elevated_command;
 use crate::installations::{HoudiniInstallation, Installation, InstalledProduct};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
+use clap::ValueEnum;
 use is_executable::IsExecutable;
 #[cfg(target_os = "windows")]
-use known_folders::{get_known_folder_path, KnownFolder};
+use known_folders::{KnownFolder, get_known_folder_path};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::ffi::OsString;
@@ -27,6 +28,27 @@ struct OverviewEntry {
     product: String,
     version: String,
     ready: bool,
+}
+
+#[derive(Clone, ValueEnum)]
+pub enum InstallerProduct {
+    /// Main Houdini application
+    #[value(name = "Houdini")]
+    Houdini,
+    #[value(name = "Engine 3ds Max")]
+    HoudiniEngine3dsMax,
+    #[value(name = "Engine Maya")]
+    HoudiniEngineMaya,
+    #[value(name = "Engine Unity")]
+    HoudiniEngineUnity,
+    #[value(name = "Engine Unreal")]
+    HoudiniEngineUnreal,
+    #[value(name = "License Server")]
+    LicenseServer,
+    #[value(name = "HQueue Client")]
+    HQueueClient,
+    #[value(name = "HQueue Server")]
+    HQueueServer,
 }
 
 impl Launcher {
@@ -55,16 +77,21 @@ impl Launcher {
     }
 
     /// Installs a Houdini build with stdio inherited from the terminal.
-    pub fn install_houdini(
+    pub fn install_product(
         &self,
         version: &str,
+        product: &InstallerProduct,
         settings_file: &Path,
         eulas: &[String],
     ) -> Result<()> {
         let mut args: Vec<OsString> = vec![
             "install".into(),
             "--product".into(),
-            "Houdini".into(),
+            product
+                .to_possible_value()
+                .context("Failed to get product name")?
+                .get_name()
+                .into(),
             "--version".into(),
             version.into(),
             "--upgrade-hserver-if-needed".into(),

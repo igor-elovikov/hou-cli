@@ -65,7 +65,7 @@ fn product_entry(p: &InstalledProduct) -> ProductEntry {
         InstalledProduct::Houdini(h) => ProductEntry {
             name: "Houdini",
             version: h.version.to_string(),
-            ready: h.ready(),
+            ready: h.ready,
             path: h.path.clone()
         },
         InstalledProduct::HServer(i) => ProductEntry {

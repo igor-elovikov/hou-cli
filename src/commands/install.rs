@@ -1,6 +1,7 @@
 use crate::credentials::CredentialSettings;
 use crate::hou::Context;
 use crate::installations::InstalledProduct;
+use crate::launcher::InstallerProduct;
 use crate::sidefx::{Houdini, Platform, Product, Status};
 use anyhow::{Context as _, Result, anyhow, bail};
 use clap::Args;
@@ -13,6 +14,13 @@ use tempfile::NamedTempFile;
 pub struct InstallCmd {
     /// Full or partial version (e.g. 21.0.729 or 21.0); latest when omitted.
     version: Option<String>,
+    /// Product to install
+    #[arg(short, long, value_enum, default_value_t = InstallerProduct::Houdini)]
+    product: InstallerProduct,
+    #[arg(long)]
+    build_option: Option<String>,
+    #[arg(long)]
+    avahi: bool,
     /// Install the latest daily build instead of production.
     #[arg(short, long)]
     daily: bool,
@@ -24,7 +32,7 @@ impl InstallCmd {
         let version = self.resolve_version(&settings)?;
 
         let already_installed = ctx.products.iter().any(|p| match p {
-            InstalledProduct::Houdini(h) => h.version == version && h.ready(),
+            InstalledProduct::Houdini(h) => h.version == version && h.ready,
             _ => false,
         });
         if already_installed {
@@ -41,8 +49,12 @@ impl InstallCmd {
 
         let settings_file = credentials_ini(&settings)?;
         println!("Installing Houdini {}...", style(&version).green());
-        ctx.installer()?
-            .install_houdini(&version.to_string(), settings_file.path(), &eulas)?;
+        ctx.installer()?.install_product(
+            &version.to_string(),
+            &self.product,
+            settings_file.path(),
+            &eulas,
+        )?;
         println!("Installed Houdini {}", style(&version).green());
         Ok(())
     }
@@ -50,7 +62,11 @@ impl InstallCmd {
     /// Resolves the version to install; queries the SideFX API unless a full version is given.
     fn resolve_version(&self, settings: &CredentialSettings) -> Result<Version> {
         if let Some(v) = &self.version {
-            return Ok(Version::parse(v)?);
+            return Ok(Version::parse(v).map_err(|_| {
+                anyhow::anyhow!(
+                    "Invalid version '{v}'. To install a product you need to specify full version"
+                )
+            })?);
         }
 
         let (client_id, client_secret) = settings.require_oauth()?;
