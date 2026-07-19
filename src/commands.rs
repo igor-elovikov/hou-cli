@@ -1,4 +1,5 @@
-pub use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand};
+use clap::builder::styling::{AnsiColor, Effects, Styles};
 
 pub mod config;
 pub mod eula;
@@ -12,6 +13,13 @@ mod run;
 mod sidefx;
 pub mod uninstall;
 pub mod launcher;
+pub mod find;
+
+const STYLES: Styles = Styles::styled()
+    .header(AnsiColor::Yellow.on_default().effects(Effects::BOLD))
+    .usage(AnsiColor::Yellow.on_default().effects(Effects::BOLD))
+    .literal(AnsiColor::Green.on_default().effects(Effects::BOLD))
+    .placeholder(AnsiColor::Cyan.on_default());
 
 #[derive(Subcommand)]
 pub enum Commands {
@@ -27,10 +35,10 @@ pub enum Commands {
     #[command(visible_alias = "pm")]
     Package(package::PackageCmd),
     /// Install a Houdini build via the discovered installer.
-    #[command(visible_alias = "i")]
+    #[command(visible_alias = "i", subcommand_help_heading = "Builds")]
     Install(install::InstallCmd),
     /// Uninstall an installed Houdini build.
-    #[command(visible_alias = "rm")]
+    #[command(visible_alias = "rm", subcommand_help_heading = "Builds")]
     Uninstall(uninstall::UninstallCmd),
     /// List installed Houdini products.
     #[command(visible_alias = "ls")]
@@ -46,6 +54,7 @@ pub enum Commands {
 }
 
 #[derive(Parser)]
+#[command(styles = STYLES)]
 pub struct Cli {
     #[clap(subcommand)]
     pub command: Option<Commands>,
@@ -59,10 +68,10 @@ pub struct Cli {
     pub attach: bool,
 
     /// Optional file (e.g. a .hip file) or project directory to open.
-    #[arg(conflicts_with = "command")]
+    #[arg(conflicts_with = "command", value_name = "File or Project Directory")]
     pub file: Option<String>,
 
     /// Arguments forwarded to Houdini; everything after `--`.
-    #[arg(last = true)]
+    #[arg(conflicts_with = "command", last = true, value_name = "Houdini arguments")]
     pub houdini_args: Vec<String>,
 }

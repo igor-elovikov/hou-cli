@@ -1,8 +1,9 @@
 use crate::installations::{HoudiniInstallation, InstalledProduct};
 use crate::launcher::Launcher;
-use anyhow::Context as _;
+use anyhow::{Context as _, bail};
 use anyhow::{Result, anyhow};
 use directories::ProjectDirs;
+use semver::VersionReq;
 use std::fs;
 use std::path::PathBuf;
 
@@ -64,36 +65,47 @@ impl Context {
         })
     }
 
-    pub fn resolve_houdini(&self, filter: Option<&str>) -> Result<&HoudiniInstallation> {
-        let selected = match filter {
-            None => self.houdinis().max_by_key(|h| &h.version),
-            Some(f) => {
-                let normalized = normalize_filter(f);
-                let req = semver::VersionReq::parse(&normalized)
-                    .with_context(|| format!("Invalid version requirement '{f}'"))?;
-                self.houdinis()
-                    .filter(|h| req.matches(&h.version))
-                    .max_by_key(|h| &h.version)
-            }
-        };
+    pub fn resolve_product(&self, kind: &str, filter: Option<&str>) -> Result<&InstalledProduct> {
+        let normalized = normalize_filter(filter);
+
+        let req = VersionReq::parse(&normalized).with_context(|| "Invalid version requirement")?;
+
+        let selected = self
+            .products
+            .iter()
+            .filter(|p| p.kind() == kind)
+            .filter(|h| req.matches(h.version()))
+            .max_by_key(|h| h.version());
 
         selected.ok_or_else(|| match filter {
             None => anyhow!("No Houdini installations found"),
             Some(f) => anyhow!("No Houdini matching '{f}' installation found"),
         })
     }
+    pub fn resolve_houdini(&self, filter: Option<&str>) -> Result<&HoudiniInstallation> {
+        let product = self.resolve_product("houdini", filter)?;
+
+        match product {
+            InstalledProduct::Houdini(houdini) => Ok(houdini),
+            _ => bail!("No Houdini installations found"),
+        }
+    }
 }
 
-fn normalize_filter(s: &str) -> String {
-    // Leave explicit operators (^, >=, etc.) and wildcards untouched.
-    if !s.chars().next().map_or(false, |c| c.is_ascii_digit()) || s.contains('*') {
-        return s.to_string();
-    }
-    // A fully specified version (major.minor.patch) must match exactly.
-    // Partial versions keep `~` for prefix matching, e.g. `21.0 matches all `21.0.x`.
-    if s.split('.').count() >= 3 {
-        format!("={s}")
+fn normalize_filter(s: Option<&str>) -> String {
+    if let Some(s) = s {
+        // Leave explicit operators (^, >=, etc.) and wildcards untouched.
+        if !s.chars().next().map_or(false, |c| c.is_ascii_digit()) || s.contains('*') {
+            s.to_string()
+        }
+        // A fully specified version (major.minor.patch) must match exactly.
+        // Partial versions keep `~` for prefix matching, e.g. `21.0 matches all `21.0.x`.
+        else if s.split('.').count() >= 3 {
+            format!("={s}")
+        } else {
+            format!("~{s}")
+        }
     } else {
-        format!("~{s}")
+        "*".to_owned()
     }
 }

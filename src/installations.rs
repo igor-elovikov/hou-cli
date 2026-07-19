@@ -4,7 +4,7 @@ use itertools::Itertools;
 use semver::Version;
 use std::env;
 use std::ffi::{OsStr, OsString};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 
 #[derive(Debug)]
@@ -31,6 +31,38 @@ pub enum InstalledProduct {
     LicenseServer(Installation),
     HQueueServer(Installation),
     HQueueClient(Installation),
+}
+
+impl InstalledProduct {
+    pub fn kind(&self) -> &'static str {
+        match self {
+            InstalledProduct::Houdini(_) => "houdini",
+            InstalledProduct::HServer(_) => "hserver",
+            InstalledProduct::LicenseServer(_) => "license-server",
+            InstalledProduct::HQueueServer(_) => "hqueue-server",
+            InstalledProduct::HQueueClient(_) => "hqueue-client",
+        }
+    }
+
+    pub fn path(&self) -> &Path {
+        match self {
+            InstalledProduct::Houdini(h) => &h.path,
+            InstalledProduct::HServer(i)
+            | InstalledProduct::LicenseServer(i)
+            | InstalledProduct::HQueueServer(i)
+            | InstalledProduct::HQueueClient(i) => &i.path,
+        }
+    }
+
+    pub fn version(&self) -> &Version {
+        match self {
+            InstalledProduct::Houdini(h) => &h.version,
+            InstalledProduct::HServer(i)
+            | InstalledProduct::LicenseServer(i)
+            | InstalledProduct::HQueueServer(i)
+            | InstalledProduct::HQueueClient(i) => &i.version,
+        }
+    }
 }
 fn env_paths_added<S: AsRef<OsStr>>(env_name: S, paths: &[PathBuf]) -> Result<OsString> {
     let path_env = env::var_os(env_name).unwrap_or(OsString::new());
