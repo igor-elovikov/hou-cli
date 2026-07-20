@@ -1,10 +1,9 @@
-use clap::{Parser, Subcommand};
 use crate::hou::Context as HouContext;
-use crate::credentials::CredentialSettings;
+use crate::launcher::Launcher;
 use crate::sidefx::{HoudiniLauncher, Platform, Product};
 use anyhow::{Context, Result};
+use clap::{Parser, Subcommand};
 use console::style;
-use crate::launcher::Launcher;
 
 #[derive(Subcommand)]
 pub enum LauncherAction {
@@ -13,7 +12,7 @@ pub enum LauncherAction {
     /// Update SideFX Launcher
     Update,
     /// Run houdini_installer (SideFX Launcher CLI official tool)
-    Cli
+    Cli,
 }
 
 #[derive(Parser)]
@@ -30,18 +29,14 @@ pub struct LauncherCmd {
     pub args: Vec<String>,
 }
 
-
 /// Set up the SideFX Launcher
 fn setup(ctx: &HouContext) -> Result<()> {
-    let creds = CredentialSettings::load(&ctx.config_dir)?;
-
     if ctx.installer.is_some() {
         println!("SideFX Launcher is already installed, skipping setup.");
         return Ok(());
     }
 
-    let (client_id, client_secret) = creds.require_oauth()?;
-    let client = crate::sidefx::Client::new(&client_id, &client_secret)?;
+    let client = ctx.sidefx_client()?;
     let launcher = Product::HoudiniLauncher(HoudiniLauncher::Default);
 
     let host_platform = Platform::host()?;
@@ -76,9 +71,7 @@ fn setup(ctx: &HouContext) -> Result<()> {
 pub fn update(ctx: &crate::hou::Context) -> Result<()> {
     let current = ctx.installer()?.version()?;
 
-    let settings = CredentialSettings::load(&ctx.config_dir)?;
-    let (client_id, client_secret) = settings.require_oauth()?;
-    let client = crate::sidefx::Client::new(&client_id, &client_secret)?;
+    let client = ctx.sidefx_client()?;
 
     let launcher_platform = Platform::host()?;
 
@@ -130,11 +123,11 @@ impl LauncherCmd {
             Some(LauncherAction::Cli) => {
                 let installer = ctx.installer()?;
                 installer.run_installer_bare(&self.args)?;
-            },
+            }
             None => {
                 let installer = ctx.installer()?;
                 installer.run_launcher(&self.args)?;
-            },
+            }
         }
         Ok(())
     }

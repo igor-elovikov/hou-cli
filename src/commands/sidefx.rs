@@ -1,4 +1,3 @@
-use crate::credentials::CredentialSettings;
 use crate::hou::Context;
 use crate::sidefx::{BuildSpec, Platform, Product};
 use anyhow::Result;
@@ -44,9 +43,7 @@ pub struct SideFX {
 
 impl SideFX {
     pub fn run(self, ctx: &Context) -> Result<()> {
-        let settings = CredentialSettings::load(&ctx.config_dir)?;
-        let (client_id, client_secret) = settings.require_oauth()?;
-        let client = crate::sidefx::Client::new(&client_id, &client_secret)?;
+        let client = ctx.sidefx_client()?;
 
         match self.command {
             SideFXCommand::Builds(args) => {

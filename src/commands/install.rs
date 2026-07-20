@@ -29,7 +29,7 @@ pub struct InstallCmd {
 impl InstallCmd {
     pub fn run(self, ctx: &Context) -> Result<()> {
         let settings = CredentialSettings::load(&ctx.config_dir)?;
-        let version = self.resolve_version(&settings)?;
+        let version = self.resolve_version(ctx)?;
 
         let already_installed = ctx.products.iter().any(|p| match p {
             InstalledProduct::Houdini(h) => h.version == version && h.ready,
@@ -60,7 +60,7 @@ impl InstallCmd {
     }
 
     /// Resolves the version to install; queries the SideFX API unless a full version is given.
-    fn resolve_version(&self, settings: &CredentialSettings) -> Result<Version> {
+    fn resolve_version(&self, ctx: &Context) -> Result<Version> {
         if let Some(v) = &self.version {
             return Ok(Version::parse(v).map_err(|_| {
                 anyhow::anyhow!(
@@ -69,8 +69,7 @@ impl InstallCmd {
             })?);
         }
 
-        let (client_id, client_secret) = settings.require_oauth()?;
-        let client = crate::sidefx::Client::new(&client_id, &client_secret)?;
+        let client = ctx.sidefx_client()?;
 
         let mut builds = client
             .builds(Product::Houdini(Houdini::Default))

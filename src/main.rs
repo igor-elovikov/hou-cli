@@ -11,12 +11,12 @@ pub mod config;
 mod credentials;
 pub mod elevated_command;
 mod hou;
+mod houdini;
 mod installations;
 mod launcher;
 pub mod package;
 mod project;
 mod sidefx;
-mod houdini;
 mod utils;
 
 pub fn main() -> Result<()> {
@@ -95,15 +95,14 @@ pub fn main() -> Result<()> {
             let houdini = hou.resolve_houdini(version_filter.as_deref())?;
             cmd.run(houdini, project.as_ref())?;
         }
-        Some(Commands::Sidefx(cmd)) => {
-            cmd.run(&hou)?;
-        }
-        Some(Commands::Launcher(cmd)) => cmd.run(&hou)?,
-        Some(Commands::Init(cmd)) => cmd.run(&hou, version_filter.as_deref())?,
         Some(Commands::Package(cmd)) => {
             let houdini = hou.resolve_houdini(version_filter.as_deref())?;
             cmd.run(&hou, houdini, project.as_ref())?;
         }
+
+        Some(Commands::Sidefx(cmd)) => cmd.run(&hou)?,
+        Some(Commands::Launcher(cmd)) => cmd.run(&hou)?,
+        Some(Commands::Init(cmd)) => cmd.run(&hou, version_filter.as_deref())?,
         Some(Commands::Install(cmd)) => cmd.run(&hou)?,
         Some(Commands::Uninstall(cmd)) => cmd.run(&hou)?,
         Some(Commands::List(cmd)) => cmd.run(&hou)?,
@@ -111,6 +110,8 @@ pub fn main() -> Result<()> {
         Some(Commands::Logout(cmd)) => cmd.run(&hou)?,
         Some(Commands::Eula(cmd)) => cmd.run(&hou)?,
         Some(Commands::Config(cmd)) => cmd.run(&hou)?,
+        Some(Commands::Find(cmd)) => cmd.run(&hou)?,
+
         None => {
             let houdini = hou.resolve_houdini(version_filter.as_deref())?;
             let forward_args = default_launch.map(|d| d.forward_args).unwrap_or_default();

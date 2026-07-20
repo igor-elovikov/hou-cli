@@ -1,8 +1,9 @@
+use anyhow::{Context, Result};
+use itertools::Itertools;
+use semver::VersionReq;
 use std::env;
 use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;
-use anyhow::{Context, Result};
-use itertools::Itertools;
 
 pub fn env_paths_added<S: AsRef<OsStr>>(env_name: S, paths: &[PathBuf]) -> Result<OsString> {
     let path_env = env::var_os(env_name).unwrap_or(OsString::new());
@@ -28,8 +29,8 @@ pub fn env_paths_prepended<S: AsRef<OsStr>>(env_name: S, paths: &[PathBuf]) -> R
     env::join_paths(env_paths).context("Failed to join env path variable")
 }
 
-pub fn normalize_version_filter(s: Option<&str>) -> String {
-    if let Some(s) = s {
+pub fn normalize_version_filter(s: Option<&str>) -> Result<VersionReq> {
+    let filter = if let Some(s) = s {
         // Leave explicit operators (^, >=, etc.) and wildcards untouched.
         if !s.chars().next().map_or(false, |c| c.is_ascii_digit()) || s.contains('*') {
             s.to_string()
@@ -43,5 +44,7 @@ pub fn normalize_version_filter(s: Option<&str>) -> String {
         }
     } else {
         "*".to_owned()
-    }
+    };
+
+    VersionReq::parse(&filter).with_context(|| format!("Invalid version filter: {filter}"))
 }

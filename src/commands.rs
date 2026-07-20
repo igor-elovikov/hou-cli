@@ -1,10 +1,12 @@
-use clap::{Parser, Subcommand};
 use clap::builder::styling::{AnsiColor, Effects, Styles};
+use clap::{Parser, Subcommand};
 
 pub mod config;
 pub mod eula;
+pub mod find;
 pub mod init;
 pub mod install;
+pub mod launcher;
 pub mod list;
 pub mod login;
 pub mod logout;
@@ -12,8 +14,6 @@ mod package;
 mod run;
 mod sidefx;
 pub mod uninstall;
-pub mod launcher;
-pub mod find;
 
 const STYLES: Styles = Styles::styled()
     .header(AnsiColor::Yellow.on_default().effects(Effects::BOLD))
@@ -27,6 +27,9 @@ pub enum Commands {
     /// List installed Houdini products.
     #[command(visible_alias = "ls")]
     List(list::ListCmd),
+    /// Find Houdini products available for download.
+    #[command(visible_alias = "f")]
+    Find(find::FindCmd),
     /// Install a Houdini build via the discovered installer.
     #[command(visible_alias = "i")]
     Install(install::InstallCmd),

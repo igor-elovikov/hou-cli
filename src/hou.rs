@@ -1,12 +1,13 @@
+use crate::credentials::CredentialSettings;
 use crate::installations::{HoudiniInstallation, InstalledProduct};
 use crate::launcher::Launcher;
-use anyhow::{bail, Context as _};
-use anyhow::{anyhow, Result};
+use crate::sidefx::Client;
+use crate::utils;
+use anyhow::{Context as _, bail};
+use anyhow::{Result, anyhow};
 use directories::ProjectDirs;
-use semver::VersionReq;
 use std::fs;
 use std::path::PathBuf;
-use crate::utils;
 
 #[derive(Debug)]
 pub struct Context {
@@ -54,6 +55,12 @@ impl Context {
         })
     }
 
+    pub fn sidefx_client(&self) -> Result<Client> {
+        let creds = CredentialSettings::load(&self.config_dir)?;
+        let (client_id, client_secret) = creds.require_oauth()?;
+        Client::new(&client_id, &client_secret)
+    }
+
     pub fn installer(&self) -> Result<&Launcher> {
         self.installer.as_ref().ok_or_else(|| anyhow!("No installer found. Install from sidefx.com or run `hou setup` to install the launcher."))
     }
@@ -67,9 +74,7 @@ impl Context {
     }
 
     pub fn resolve_product(&self, kind: &str, filter: Option<&str>) -> Result<&InstalledProduct> {
-        let normalized = utils::normalize_version_filter(filter);
-
-        let req = VersionReq::parse(&normalized).with_context(|| "Invalid version requirement")?;
+        let req = utils::normalize_version_filter(filter)?;
 
         let selected = self
             .products
@@ -92,4 +97,3 @@ impl Context {
         }
     }
 }
-
