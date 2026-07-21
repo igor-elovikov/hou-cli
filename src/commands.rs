@@ -27,7 +27,7 @@ pub enum Commands {
     /// List installed Houdini products.
     #[command(visible_alias = "ls")]
     List(list::ListCmd),
-    /// Find Houdini products available for download.
+    /// Find Houdini versions available for download.
     #[command(visible_alias = "f")]
     Find(find::FindCmd),
     /// Install a Houdini product via the discovered installer.
