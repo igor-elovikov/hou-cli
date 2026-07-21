@@ -30,10 +30,10 @@ pub enum Commands {
     /// Find Houdini products available for download.
     #[command(visible_alias = "f")]
     Find(find::FindCmd),
-    /// Install a Houdini build via the discovered installer.
+    /// Install a Houdini product via the discovered installer.
     #[command(visible_alias = "i")]
     Install(install::InstallCmd),
-    /// Uninstall an installed Houdini build.
+    /// Uninstall an installed Houdini product.
     #[command(visible_alias = "rm")]
     Uninstall(uninstall::UninstallCmd),
     /// Store SideFX credentials in the config-dir credentials.toml.
@@ -52,7 +52,7 @@ pub enum Commands {
     Init(init::InitCmd),
     /// Calls to SideFX WebAPI. Builds list, downloading and changelog
     Sidefx(sidefx::SideFX),
-    /// Read and write hou settings in the config-dir config.toml.
+    /// Manage configuration settings for hou.
     Config(config::ConfigCmd),
 }
 
