@@ -14,6 +14,7 @@ mod package;
 mod run;
 mod sidefx;
 pub mod uninstall;
+pub mod update;
 
 const STYLES: Styles = Styles::styled()
     .header(AnsiColor::Yellow.on_default().effects(Effects::BOLD))

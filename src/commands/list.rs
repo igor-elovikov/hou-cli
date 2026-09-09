@@ -1,17 +1,14 @@
-use std::path::PathBuf;
 use crate::hou::Context;
 use crate::installations::InstalledProduct;
 use anyhow::Result;
 use clap::Args;
 use console::style;
-use serde::Serialize;
+use std::path::PathBuf;
 
 #[derive(Args)]
-pub struct ListCmd {
+pub struct ListCmd {}
 
-}
-
-#[derive(Serialize)]
+// #[derive(Serialize)]
 struct ProductEntry {
     name: &'static str,
     version: String,
@@ -22,7 +19,7 @@ struct ProductEntry {
 impl ListCmd {
     pub fn run(self, ctx: &Context) -> Result<()> {
         let launcher = ctx
-            .installer()?
+            .launcher()?
             .version()
             .map(|v| v.to_string())
             .unwrap_or_else(|_| "unknown".to_string());
@@ -32,7 +29,7 @@ impl ListCmd {
             "{} {}  {}",
             style("Launcher").bold().cyan(),
             style(&launcher).bold(),
-            style(ctx.installer()?.path().display()).dim(),
+            style(ctx.launcher()?.path().display()).dim(),
         );
         println!("{}", style("\nInstalled Products").bold());
         if entries.is_empty() {
@@ -66,31 +63,37 @@ fn product_entry(p: &InstalledProduct) -> ProductEntry {
             name: "Houdini",
             version: h.version.to_string(),
             ready: h.ready,
-            path: h.path.clone()
+            path: h.path.clone(),
         },
         InstalledProduct::HServer(i) => ProductEntry {
             name: "HServer",
             version: i.version.to_string(),
             ready: i.ready,
-            path: i.path.clone()
+            path: i.path.clone(),
         },
         InstalledProduct::LicenseServer(i) => ProductEntry {
             name: "License Server",
             version: i.version.to_string(),
             ready: i.ready,
-            path: i.path.clone()
+            path: i.path.clone(),
         },
         InstalledProduct::HQueueServer(i) => ProductEntry {
             name: "HQueue Server",
             version: i.version.to_string(),
             ready: i.ready,
-            path: i.path.clone()
+            path: i.path.clone(),
         },
         InstalledProduct::HQueueClient(i) => ProductEntry {
             name: "HQueue Client",
             version: i.version.to_string(),
             ready: i.ready,
-            path: i.path.clone()
+            path: i.path.clone(),
         },
+        InstalledProduct::EngineMaya(i) => ProductEntry {
+            name: "Engine Maya",
+            version: i.version.to_string(),
+            ready: i.ready,
+            path: i.path.clone(),
+        }
     }
 }

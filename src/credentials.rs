@@ -1,6 +1,8 @@
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
+use std::io::Write;
 use std::path::{Path, PathBuf};
+use tempfile::NamedTempFile;
 
 const CREDENTIALS_TOML: &str = "credentials.toml";
 
@@ -119,5 +121,33 @@ impl CredentialSettings {
 
     pub fn clear_eulas(&mut self) {
         self.credentials.accept_eula.clear();
+    }
+
+    /// Writes credentials and accepted EULAs to a temp ini for houdini_installer.
+    pub fn credentials_ini(&self) -> Result<NamedTempFile> {
+        let mut text = String::new();
+        if let (Some(id), Some(secret)) = (self.client_id(), self.client_secret()) {
+            text.push_str(&format!("client_id={id}\nclient_secret={secret}\n"));
+        } else if let (Some(user), Some(pass)) = (self.username(), self.password()) {
+            text.push_str(&format!("username={user}\npassword={pass}\n"));
+        } else {
+            bail!(
+            "no SideFX credentials; run `hou login oauth <client_id> <client_secret>` or `hou login user <username> <password>`"
+        );
+        }
+
+        let eulas = self.eulas();
+        if !eulas.is_empty() {
+            text.push_str(&format!("accept_eula={}\n", eulas.join(" ")));
+        }
+
+        let mut file = tempfile::Builder::new()
+            .prefix("hou-install-")
+            .suffix(".ini")
+            .tempfile()
+            .context("failed to create temp settings file")?;
+        file.write_all(text.as_bytes())
+            .context("failed to write temp settings file")?;
+        Ok(file)
     }
 }

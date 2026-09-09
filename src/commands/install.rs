@@ -1,22 +1,18 @@
-use crate::credentials::CredentialSettings;
 use crate::hou::Context;
-use crate::installations::InstalledProduct;
-use crate::launcher::InstallerProduct;
+use crate::launcher::LauncherProduct;
 use crate::sidefx::{Houdini, Platform, Product, Status};
-use anyhow::{Context as _, Result, anyhow, bail};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use console::style;
 use semver::Version;
-use std::io::Write;
-use tempfile::NamedTempFile;
 
 #[derive(Args)]
 pub struct InstallCmd {
     /// Full or partial version (e.g. 21.0.729 or 21.0); latest when omitted.
     version: Option<String>,
     /// Product to install
-    #[arg(short, long, value_enum, default_value_t = InstallerProduct::Houdini)]
-    product: InstallerProduct,
+    #[arg(short, long, value_enum, default_value_t = LauncherProduct::Houdini)]
+    product: LauncherProduct,
     #[arg(long)]
     build_option: Option<String>,
     #[arg(long)]
@@ -28,34 +24,24 @@ pub struct InstallCmd {
 
 impl InstallCmd {
     pub fn run(self, ctx: &Context) -> Result<()> {
-        let settings = CredentialSettings::load(&ctx.config_dir)?;
         let version = self.resolve_version(ctx)?;
 
-        let already_installed = ctx.products.iter().any(|p| match p {
-            InstalledProduct::Houdini(h) => h.version == version && h.ready,
-            _ => false,
+        let already_installed = ctx.products.iter().any(|p| {
+            p.launcher_product().is_ok_and(|lp| lp == self.product) && p.version() == &version
         });
+
         if already_installed {
-            println!("Houdini {} is already installed", style(&version).cyan());
+            println!("{} {} is already installed", style(&self.product).cyan(), style(&version).cyan());
             return Ok(());
         }
 
-        let eulas = settings.eulas();
-        if eulas.is_empty() {
-            bail!(
-                "no accepted SideFX EULA dates; view the license and run `hou eula add SideFX-YYYY-MM-DD`"
-            );
-        }
-
-        let settings_file = credentials_ini(&settings)?;
-        println!("Installing Houdini {}...", style(&version).green());
-        ctx.installer()?.install_product(
+        println!("Installing {} {}...", style(&self.product).cyan(), style(&version).green());
+        ctx.launcher()?.install_product(
+            ctx,
             &version.to_string(),
             &self.product,
-            settings_file.path(),
-            &eulas,
         )?;
-        println!("Installed Houdini {}", style(&version).green());
+        println!("Installed {} {}", style(&self.product).cyan(), style(&version).green());
         Ok(())
     }
 
@@ -95,30 +81,4 @@ impl InstallCmd {
     }
 }
 
-/// Writes credentials and accepted EULAs to a temp ini for houdini_installer.
-fn credentials_ini(settings: &CredentialSettings) -> Result<NamedTempFile> {
-    let mut text = String::new();
-    if let (Some(id), Some(secret)) = (settings.client_id(), settings.client_secret()) {
-        text.push_str(&format!("client_id={id}\nclient_secret={secret}\n"));
-    } else if let (Some(user), Some(pass)) = (settings.username(), settings.password()) {
-        text.push_str(&format!("username={user}\npassword={pass}\n"));
-    } else {
-        bail!(
-            "no SideFX credentials; run `hou login oauth <client_id> <client_secret>` or `hou login user <username> <password>`"
-        );
-    }
 
-    let eulas = settings.eulas();
-    if !eulas.is_empty() {
-        text.push_str(&format!("accept_eula={}\n", eulas.join(" ")));
-    }
-
-    let mut file = tempfile::Builder::new()
-        .prefix("hou-install-")
-        .suffix(".ini")
-        .tempfile()
-        .context("failed to create temp settings file")?;
-    file.write_all(text.as_bytes())
-        .context("failed to write temp settings file")?;
-    Ok(file)
-}

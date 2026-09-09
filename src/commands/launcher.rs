@@ -31,7 +31,7 @@ pub struct LauncherCmd {
 
 /// Set up the SideFX Launcher
 fn setup(ctx: &HouContext) -> Result<()> {
-    if ctx.installer.is_some() {
+    if ctx.launcher.is_some() {
         println!("SideFX Launcher is already installed, skipping setup.");
         return Ok(());
     }
@@ -69,7 +69,7 @@ fn setup(ctx: &HouContext) -> Result<()> {
 
 /// Updates the SideFX launcher to the latest production build.
 pub fn update(ctx: &crate::hou::Context) -> Result<()> {
-    let current = ctx.installer()?.version()?;
+    let current = ctx.launcher()?.version()?;
 
     let client = ctx.sidefx_client()?;
 
@@ -93,7 +93,7 @@ pub fn update(ctx: &crate::hou::Context) -> Result<()> {
 
     // Refresh the launcher where it was discovered
     let target = ctx
-        .installer()?
+        .launcher()?
         .current_install_path()
         .context("Failed to get launcher dir")?;
 
@@ -121,12 +121,12 @@ impl LauncherCmd {
             Some(LauncherAction::Setup) => setup(ctx)?,
             Some(LauncherAction::Update) => update(ctx)?,
             Some(LauncherAction::Cli) => {
-                let installer = ctx.installer()?;
-                installer.run_installer_bare(&self.args)?;
+                let launcher = ctx.launcher()?;
+                launcher.run_installer_bare(&self.args)?;
             }
             None => {
-                let installer = ctx.installer()?;
-                installer.run_launcher(&self.args)?;
+                let launcher = ctx.launcher()?;
+                launcher.run_launcher(&self.args)?;
             }
         }
         Ok(())

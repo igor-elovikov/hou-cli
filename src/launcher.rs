@@ -1,3 +1,4 @@
+use crate::credentials::CredentialSettings;
 use crate::elevated_command::try_elevated_command;
 use crate::installations::{HoudiniInstallation, Installation, InstalledProduct};
 use anyhow::{Context, Result, bail};
@@ -8,6 +9,7 @@ use known_folders::{KnownFolder, get_known_folder_path};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::ffi::OsString;
+use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
@@ -30,8 +32,8 @@ struct OverviewEntry {
     ready: bool,
 }
 
-#[derive(Clone, ValueEnum)]
-pub enum InstallerProduct {
+#[derive(Clone, ValueEnum, Eq, PartialEq)]
+pub enum LauncherProduct {
     /// Main Houdini application
     #[value(name = "Houdini")]
     Houdini,
@@ -49,6 +51,31 @@ pub enum InstallerProduct {
     HQueueClient,
     #[value(name = "HQueue Server")]
     HQueueServer,
+}
+
+impl fmt::Display for LauncherProduct {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Uses the `#[value(name = ...)]` names declared above.
+        self.to_possible_value()
+            .expect("no variant is skipped")
+            .get_name()
+            .fmt(f)
+    }
+}
+
+impl LauncherProduct {
+    pub fn launcher_kind(&self) -> &'static str {
+        match self {
+            LauncherProduct::Houdini => "houdini",
+            LauncherProduct::HoudiniEngine3dsMax => "engine_3dsmax",
+            LauncherProduct::HoudiniEngineMaya => "engine_maya",
+            LauncherProduct::HoudiniEngineUnity => "engine_unity",
+            LauncherProduct::HoudiniEngineUnreal => "engine_unreal",
+            LauncherProduct::LicenseServer => "license-server",
+            LauncherProduct::HQueueClient => "hqueue-client",
+            LauncherProduct::HQueueServer => "hqueue-server",
+        }
+    }
 }
 
 impl Launcher {
@@ -79,11 +106,21 @@ impl Launcher {
     /// Installs a Houdini build with stdio inherited from the terminal.
     pub fn install_product(
         &self,
+        ctx: &crate::hou::Context,
         version: &str,
-        product: &InstallerProduct,
-        settings_file: &Path,
-        eulas: &[String],
+        product: &LauncherProduct,
     ) -> Result<()> {
+        let settings = CredentialSettings::load(&ctx.config_dir)?;
+
+        let eulas = settings.eulas();
+        if eulas.is_empty() {
+            bail!(
+                "no accepted SideFX EULA dates; view the license and run `hou eula add SideFX-YYYY-MM-DD`"
+            );
+        }
+
+        let settings_file = settings.credentials_ini()?;
+
         let mut args: Vec<OsString> = vec![
             "install".into(),
             "--product".into(),
@@ -96,7 +133,7 @@ impl Launcher {
             version.into(),
             "--upgrade-hserver-if-needed".into(),
             "--settings-file".into(),
-            settings_file.as_os_str().to_os_string(),
+            settings_file.path().as_os_str().to_os_string(),
         ];
 
         if cfg!(target_os = "linux") {
@@ -162,6 +199,19 @@ impl Launcher {
         Ok(())
     }
 
+    pub fn modify(&self, product: &InstalledProduct, version: &str) -> Result<()> {
+        let install_dir = product.path().as_os_str().to_os_string();
+
+        let args: Vec<OsString> = vec![
+            "modify".into(),
+            "--version".into(),
+            version.into(),
+            install_dir,
+        ];
+
+        Ok(())
+    }
+
     fn run_installer(&self, args: &[OsString], reason: &str) -> Result<ExitStatus> {
         try_elevated_command(&self.installer_exe, args, reason)
     }
@@ -222,6 +272,9 @@ impl Launcher {
                 }
                 "HQueue Client" => {
                     InstalledProduct::HQueueClient(Installation::new(path, version, ready)?)
+                }
+                "Engine Maya" => {
+                    InstalledProduct::EngineMaya(Installation::new(path, version, ready)?)
                 }
                 other => bail!("Unknown product: {other}"),
             };

@@ -1,6 +1,8 @@
+use crate::launcher::LauncherProduct;
 use anyhow::Result;
 use semver::Version;
 use std::path::{Path, PathBuf};
+
 #[derive(Debug)]
 pub struct Installation {
     pub path: PathBuf,
@@ -25,16 +27,18 @@ pub enum InstalledProduct {
     LicenseServer(Installation),
     HQueueServer(Installation),
     HQueueClient(Installation),
+    EngineMaya(Installation),
 }
 
 impl InstalledProduct {
-    pub fn kind(&self) -> &'static str {
+    pub fn launcher_product(&self) -> Result<LauncherProduct> {
         match self {
-            InstalledProduct::Houdini(_) => "houdini",
-            InstalledProduct::HServer(_) => "hserver",
-            InstalledProduct::LicenseServer(_) => "license-server",
-            InstalledProduct::HQueueServer(_) => "hqueue-server",
-            InstalledProduct::HQueueClient(_) => "hqueue-client",
+            InstalledProduct::Houdini(_) => Ok(LauncherProduct::Houdini),
+            InstalledProduct::LicenseServer(_) => Ok(LauncherProduct::LicenseServer),
+            InstalledProduct::HQueueServer(_) => Ok(LauncherProduct::HQueueServer),
+            InstalledProduct::HQueueClient(_) => Ok(LauncherProduct::HQueueClient),
+            InstalledProduct::EngineMaya(_) => Ok(LauncherProduct::HoudiniEngineMaya),
+            _ => Err(anyhow::anyhow!("No corresponding launcher product for {:?}", self)),
         }
     }
 
@@ -44,7 +48,8 @@ impl InstalledProduct {
             InstalledProduct::HServer(i)
             | InstalledProduct::LicenseServer(i)
             | InstalledProduct::HQueueServer(i)
-            | InstalledProduct::HQueueClient(i) => &i.path,
+            | InstalledProduct::HQueueClient(i)
+            | InstalledProduct::EngineMaya(i) => &i.path,
         }
     }
 
@@ -54,7 +59,8 @@ impl InstalledProduct {
             InstalledProduct::HServer(i)
             | InstalledProduct::LicenseServer(i)
             | InstalledProduct::HQueueServer(i)
-            | InstalledProduct::HQueueClient(i) => &i.version,
+            | InstalledProduct::HQueueClient(i)
+            | InstalledProduct::EngineMaya(i) => &i.version,
         }
     }
 }
