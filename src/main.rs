@@ -105,6 +105,7 @@ pub fn main() -> Result<()> {
         Some(Commands::Init(cmd)) => cmd.run(&hou, version_filter.as_deref())?,
         Some(Commands::Install(cmd)) => cmd.run(&hou)?,
         Some(Commands::Uninstall(cmd)) => cmd.run(&hou)?,
+        Some(Commands::Update(cmd)) => cmd.run(&hou)?,
         Some(Commands::List(cmd)) => cmd.run(&hou)?,
         Some(Commands::Login(cmd)) => cmd.run(&hou)?,
         Some(Commands::Logout(cmd)) => cmd.run(&hou)?,

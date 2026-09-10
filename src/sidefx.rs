@@ -13,6 +13,7 @@ pub use build::BuildsQuery;
 pub use download::{BuildDownload, BuildDownloadQuery, BuildSpec};
 use indicatif::{ProgressBar, ProgressStyle};
 pub use products::{Houdini, HoudiniLauncher, Platform, Product, Release, Status};
+use semver::Version;
 use serde::Deserialize;
 use serde_json::Value;
 use std::io::Read;
@@ -131,6 +132,38 @@ impl Client {
         let build = self.download_build(&info, staging_dir)?;
         install_launcher(&build, target_dir)
     }
+
+    pub fn latest_version_for(&self, major: u64, minor: u64, only_production: bool) -> Result<Version> {
+        let mut builds = self
+            .builds(Product::Houdini(Houdini::Default))
+            .version(format!("{major}.{minor}"))
+            .platform(Platform::host()?)
+            .send()?;
+
+        if only_production {
+            builds.retain(|b| matches!(b.release, Release::Gold));
+        }
+
+        builds
+            .into_iter()
+            .map(|b| b.version)
+            .max()
+            .ok_or_else(|| anyhow!("No Houdini {major}.{minor} builds found"))
+    }
+
+    pub fn is_production(&self, version: &Version) -> Option<bool> {
+        let builds = self
+            .builds(Product::Houdini(Houdini::Default))
+            .version(format!("{}.{}", version.major, version.minor))
+            .platform(Platform::host().ok()?)
+            .send()
+            .ok()?;
+
+        builds
+            .into_iter()
+            .find(|b| b.version == *version)
+            .map(|b| matches!(b.release, Release::Gold))
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -231,7 +264,7 @@ fn install_launcher(dmg: &Path, target_dir: &Path) -> Result<PathBuf> {
         ],
         "Copying Houdini Launcher requires admin privileges",
     )
-    .context("failed to run cp for Houdini Launcher.app");
+        .context("failed to run cp for Houdini Launcher.app");
 
     println!("Unmounting and cleaning up...");
     let detach_status = std::process::Command::new("hdiutil")

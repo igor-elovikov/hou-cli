@@ -32,7 +32,7 @@ struct OverviewEntry {
     ready: bool,
 }
 
-#[derive(Clone, ValueEnum, Eq, PartialEq)]
+#[derive(Clone, Copy, ValueEnum, Eq, PartialEq)]
 pub enum LauncherProduct {
     /// Main Houdini application
     #[value(name = "Houdini")]
@@ -199,16 +199,26 @@ impl Launcher {
         Ok(())
     }
 
-    pub fn modify(&self, product: &InstalledProduct, version: &str) -> Result<()> {
+    pub fn modify(&self, ctx: &crate::hou::Context, product: &InstalledProduct, version: &str) -> Result<()> {
         let install_dir = product.path().as_os_str().to_os_string();
+
+        let settings = CredentialSettings::load(&ctx.config_dir)?;
+        let settings_file = settings.credentials_ini()?;
 
         let args: Vec<OsString> = vec![
             "modify".into(),
             "--version".into(),
             version.into(),
+            "--settings-file".into(),
+            settings_file.path().as_os_str().to_os_string(),
             install_dir,
         ];
 
+        let status =
+            self.run_installer(&args, "sudo needed to update products")?;
+        if !status.success() {
+            bail!("houdini_installer failed with status {status}");
+        }
         Ok(())
     }
 

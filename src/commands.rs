@@ -37,6 +37,9 @@ pub enum Commands {
     /// Uninstall an installed Houdini product.
     #[command(visible_alias = "rm")]
     Uninstall(uninstall::UninstallCmd),
+    /// Update an installed Houdini product.
+    #[command(visible_alias = "u")]
+    Update(update::UpdateCmd),
     /// Store SideFX credentials in the config-dir credentials.toml.
     Login(login::LoginCmd),
     /// Remove the SideFX credentials/EULA settings file.
