@@ -37,7 +37,7 @@ pub fn main() -> Result<()> {
             &cwd,
             cli.file.as_deref(),
             &cli.houdini_args,
-        )),
+        )?),
         _ => None,
     };
 
@@ -129,13 +129,13 @@ struct DefaultLaunch {
     require_project: bool,
 }
 
-fn parse_default_launch(cwd: &Path, file: Option<&str>, houdini_args: &[String]) -> DefaultLaunch {
+fn parse_default_launch(cwd: &Path, file: Option<&str>, houdini_args: &[String]) -> Result<DefaultLaunch> {
     let Some(first) = file else {
-        return DefaultLaunch {
+        return Ok(DefaultLaunch {
             discovery_start: cwd.to_path_buf(),
             forward_args: houdini_args.to_vec(),
             require_project: false,
-        };
+        });
     };
 
     let p = Path::new(first);
@@ -146,12 +146,20 @@ fn parse_default_launch(cwd: &Path, file: Option<&str>, houdini_args: &[String])
     };
 
     if abs.is_dir() {
-        DefaultLaunch {
+        Ok(DefaultLaunch {
             discovery_start: abs,
             forward_args: houdini_args.to_vec(),
             require_project: true,
-        }
+        })
     } else {
+
+        if !abs.exists() {
+            bail!(
+                "Project directory or file does not exist: {}",
+                abs.display()
+            );
+        }
+
         let start = abs
             .parent()
             .map(Path::to_path_buf)
@@ -159,10 +167,10 @@ fn parse_default_launch(cwd: &Path, file: Option<&str>, houdini_args: &[String])
         let mut forward = Vec::with_capacity(1 + houdini_args.len());
         forward.push(first.to_string());
         forward.extend(houdini_args.iter().cloned());
-        DefaultLaunch {
+        Ok(DefaultLaunch {
             discovery_start: start,
             forward_args: forward,
             require_project: false,
-        }
+        })
     }
 }
