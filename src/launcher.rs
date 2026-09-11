@@ -78,6 +78,22 @@ impl LauncherProduct {
     }
 }
 
+fn replace_version(path: &Path, new_ver: &str) -> Result<PathBuf> {
+    let file_name = path
+        .file_name()
+        .context("Path has no filename")?
+        .to_str()
+        .context("Filename is not valid UTF-8")?;
+
+    let prefix = file_name.trim_end_matches(|c: char| c.is_ascii_digit() || c == '.');
+
+    if prefix.len() == file_name.len() {
+        bail!("Filename does not end with version digits: '{file_name}'");
+    }
+
+    Ok(path.with_file_name(format!("{prefix}{new_ver}")))
+}
+
 impl Launcher {
     pub fn discover() -> Result<Self> {
         let installer_exe = Self::default_path();
@@ -205,7 +221,7 @@ impl Launcher {
         let settings = CredentialSettings::load(&ctx.config_dir)?;
         let settings_file = settings.credentials_ini()?;
 
-        let args: Vec<OsString> = vec![
+        let mut args: Vec<OsString> = vec![
             "modify".into(),
             "--version".into(),
             version.into(),
@@ -213,6 +229,15 @@ impl Launcher {
             settings_file.path().as_os_str().to_os_string(),
             install_dir,
         ];
+
+        match product {
+            InstalledProduct::Houdini(_) =>{
+                args.push("--installdir".into());
+                let new_install_dir = replace_version(product.path(), version)?;
+                args.push(new_install_dir.as_os_str().to_os_string());
+            },
+            _ => {}
+        }
 
         let status =
             self.run_installer(&args, "sudo needed to update products")?;
