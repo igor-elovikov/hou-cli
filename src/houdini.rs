@@ -56,14 +56,13 @@ impl HoudiniInstallation {
     }
 
     #[cfg(target_os = "windows")]
-    fn user_prefs_dir(version: &Version) -> anyhow::Result<PathBuf> {
-        let dirs =
-            directories::BaseDirs::new().context("Failed to get user preference directory")?;
-        let pref = dirs.home_dir();
+    fn user_prefs_dir(version: &Version) -> Result<PathBuf> {
+
+        let user_dirs = directories::UserDirs::new().context("Failed to get user preference directory")?;
+        let pref = user_dirs.document_dir().context("Failed to get Documents directory")?;
 
         let houdini_prefs = pref
-            .join("houdini")
-            .join(format!("{}.{}", version.major, version.minor));
+            .join(format!("houdini{}.{}", version.major, version.minor));
 
         Ok(houdini_prefs)
     }
