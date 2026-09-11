@@ -122,7 +122,7 @@ impl LauncherCmd {
             Some(LauncherAction::Update) => update(ctx)?,
             Some(LauncherAction::Cli) => {
                 let launcher = ctx.launcher()?;
-                launcher.run_installer_bare(&self.args)?;
+                launcher.run_launcher_cli(&self.args)?;
             }
             None => {
                 let launcher = ctx.launcher()?;

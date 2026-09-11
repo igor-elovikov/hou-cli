@@ -233,7 +233,7 @@ impl Launcher {
             .with_context(|| format!("Failed to run launcher at {}", self.launcher_exe.display()))
     }
 
-    pub fn run_installer_bare(&self, args: &[String]) -> Result<ExitStatus> {
+    pub fn run_launcher_cli(&self, args: &[String]) -> Result<ExitStatus> {
         Command::new(&self.installer_exe)
             .args(args)
             .status()
