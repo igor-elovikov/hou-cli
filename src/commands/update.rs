@@ -1,5 +1,6 @@
 use crate::launcher::LauncherProduct;
 use clap::Args;
+use console::style;
 
 #[derive(Args)]
 pub struct UpdateCmd {
@@ -19,19 +20,35 @@ impl UpdateCmd {
         let product = ctx.resolve_product(self.product, self.version.as_deref())?;
         let version = product.version();
 
-        let client = ctx.sidefx_client()?;
-        let latest_version = client.latest_version_for(version.major, version.minor, true)?;
-
-        println!("Found latest version {} for {} {}", latest_version, self.product, version);
+        let target_version = match &self.to {
+            Some(to) => semver::Version::parse(to)?,
+            None => {
+                let client = ctx.sidefx_client()?;
+                let latest = client.latest_version_for(version.major, version.minor, true)?;
+                println!(
+                    "Found latest version {} for {} {}",
+                    latest, self.product, version
+                );
+                latest
+            }
+        };
 
         let launcher = ctx.launcher()?;
         launcher.modify(
             ctx,
             product,
-            &format!("{}.{}.{}", latest_version.major, latest_version.minor, latest_version.patch),
+            &format!(
+                "{}.{}.{}",
+                target_version.major, target_version.minor, target_version.patch
+            ),
         )?;
 
-        println!("Updated {} to version {}", self.product, latest_version);
+        println!(
+            "Updated {}:  {} -> {}",
+            style(self.product).bold(),
+            style(version).yellow(),
+            style(target_version).green()
+        );
 
         Ok(())
     }
