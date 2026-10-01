@@ -21,6 +21,9 @@ pub struct InitCmd {
     /// Point `hpath` straight at `$HOUDINI_PACKAGE_PATH` without a package env var.
     #[arg(long, requires = "package")]
     pub no_package_env: bool,
+    /// Skip creating the standard Houdini subdirectories.
+    #[arg(long)]
+    pub no_layout: bool,
 }
 
 const PACKAGE_LAYOUT: &[&str] = &[
@@ -43,7 +46,12 @@ impl InitCmd {
             .with_context(|| format!("Failed to create {}", root.display()))?;
 
         if let Some(name) = self.package.as_deref() {
-            return init_package(&root, name, self.no_package_env);
+            init_package(&root, name, self.no_package_env)?;
+            if !self.no_layout {
+                create_layout(&root)?;
+            }
+            println!("Initialized package at {}", root.display());
+            return Ok(());
         }
 
         let marker = root.join(PROJECT_MARKER);
@@ -78,7 +86,9 @@ impl InitCmd {
         fs::write(&marker, format!("{body}\n"))
             .with_context(|| format!("Failed to write {}", marker.display()))?;
 
-        create_layout(&root)?;
+        if !self.no_layout {
+            create_layout(&root)?;
+        }
 
         let cache = root.join(PROJECT_PKGS_DIR).join("cache");
         fs::create_dir_all(&cache)
@@ -124,10 +134,6 @@ fn init_package(root: &Path, name: &str, no_env: bool) -> Result<()> {
     let body = serde_json::to_string_pretty(&package)?;
     fs::write(&file, format!("{body}\n"))
         .with_context(|| format!("Failed to write {}", file.display()))?;
-
-    create_layout(root)?;
-
-    println!("Initialized package at {}", file.display());
     Ok(())
 }
 
