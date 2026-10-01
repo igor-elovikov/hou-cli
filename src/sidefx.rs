@@ -190,8 +190,11 @@ fn install_launcher(installer: &Path, target_dir: &Path) -> Result<PathBuf> {
         target_dir.display()
     );
 
+    // Reason is shown once; sudo caches credentials for the installer run.
+    let mut installer_reason = reason.as_str();
     match std::fs::create_dir_all(parent) {
         Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+            installer_reason = "";
             let status = try_elevated_command(
                 Path::new("mkdir"),
                 &["-p".into(), parent.into()],
@@ -205,7 +208,7 @@ fn install_launcher(installer: &Path, target_dir: &Path) -> Result<PathBuf> {
     }
 
     let status =
-        try_elevated_command_with_path(installer, &["-q".into(), name.into()], &reason, parent)?;
+        try_elevated_command_with_path(installer, &["-q".into(), name.into()], installer_reason, parent)?;
     if !status.success() {
         bail!("launcher installer failed with status {status}");
     }
