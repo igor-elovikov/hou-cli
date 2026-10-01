@@ -215,7 +215,12 @@ impl Launcher {
         Ok(())
     }
 
-    pub fn modify(&self, ctx: &crate::hou::Context, product: &InstalledProduct, version: &str) -> Result<()> {
+    pub fn modify(
+        &self,
+        ctx: &crate::hou::Context,
+        product: &InstalledProduct,
+        version: &str,
+    ) -> Result<()> {
         let install_dir = product.path().as_os_str().to_os_string();
 
         let settings = CredentialSettings::load(&ctx.config_dir)?;
@@ -231,16 +236,15 @@ impl Launcher {
         ];
 
         match product {
-            InstalledProduct::Houdini(_) =>{
+            InstalledProduct::Houdini(_) => {
                 args.push("--installdir".into());
                 let new_install_dir = replace_version(product.path(), version)?;
                 args.push(new_install_dir.as_os_str().to_os_string());
-            },
+            }
             _ => {}
         }
 
-        let status =
-            self.run_installer(&args, "sudo needed to update products")?;
+        let status = self.run_installer(&args, "sudo needed to update products")?;
         if !status.success() {
             bail!("houdini_installer failed with status {status}");
         }
@@ -355,7 +359,7 @@ impl Launcher {
     }
     #[cfg(target_os = "linux")]
     pub fn install_path() -> PathBuf {
-        PathBuf::from("/opt/sidefx")
+        PathBuf::from("/opt/sidefx/launcher")
     }
 
     #[cfg(target_os = "windows")]
