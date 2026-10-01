@@ -52,7 +52,8 @@ pub enum Platform {
     Win64,
     Macos,
     MacosxArm64,
-    Linux,
+    LinuxX86_64,
+    LinuxArm64,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -147,13 +148,18 @@ impl Platform {
             Platform::Win64 => "win64",
             Platform::Macos => "macos",
             Platform::MacosxArm64 => "macosx_arm64",
-            Platform::Linux => "linux",
+            Platform::LinuxX86_64 => "linux_x86_64",
+            Platform::LinuxArm64 => "linux_arm64",
         }
     }
 
     pub fn host() -> Result<Self> {
         #[cfg(target_os = "linux")]
-        return Ok(Platform::Linux);
+        return Ok(if cfg!(target_arch = "aarch64") {
+            Platform::LinuxArm64
+        } else {
+            Platform::LinuxX86_64
+        });
 
         #[cfg(target_os = "windows")]
         return Ok(Platform::Win64);
@@ -173,8 +179,10 @@ impl Platform {
 impl FromStr for Platform {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self> {
-        if s.starts_with("linux") {
-            Ok(Platform::Linux)
+        if s.starts_with("linux_arm64") || s.starts_with("linux_aarch64") {
+            Ok(Platform::LinuxArm64)
+        } else if s.starts_with("linux") {
+            Ok(Platform::LinuxX86_64)
         } else if s.starts_with("win") {
             Ok(Platform::Win64)
         } else if s.starts_with("macosx_arm64") || s.starts_with("macos_arm64") {
