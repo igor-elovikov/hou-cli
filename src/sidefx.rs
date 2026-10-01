@@ -4,7 +4,6 @@ mod products;
 
 #[cfg(target_os = "windows")]
 use std::ffi::OsString;
-#[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::elevated_command::try_elevated_command;
 #[cfg(target_os = "linux")]
 use crate::elevated_command::try_elevated_command_with_path;
@@ -186,15 +185,30 @@ fn install_launcher(installer: &Path, target_dir: &Path) -> Result<PathBuf> {
             target_dir.display()
         )
     })?;
-    std::fs::create_dir_all(parent)
-        .with_context(|| format!("failed to create {}", parent.display()))?;
-
     let reason = format!(
         "sudo needed to install the launcher to {}",
         target_dir.display()
     );
 
-    try_elevated_command_with_path(installer, &["-q".into(), name.into()], &reason, &parent)?;
+    match std::fs::create_dir_all(parent) {
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+            let status = try_elevated_command(
+                Path::new("mkdir"),
+                &["-p".into(), parent.into()],
+                &reason,
+            )?;
+            if !status.success() {
+                bail!("failed to create {}", parent.display());
+            }
+        }
+        r => r.with_context(|| format!("failed to create {}", parent.display()))?,
+    }
+
+    let status =
+        try_elevated_command_with_path(installer, &["-q".into(), name.into()], &reason, parent)?;
+    if !status.success() {
+        bail!("launcher installer failed with status {status}");
+    }
 
     Ok(target_dir.to_path_buf())
 }
