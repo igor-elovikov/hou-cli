@@ -1,11 +1,11 @@
-use std::ffi::{OsStr, OsString};
-use std::path::PathBuf;
-use std::process::{Command, ExitStatus};
-use anyhow::{Context, Result};
-use semver::Version;
 use crate::installations::HoudiniInstallation;
 use crate::project::Project;
 use crate::utils::{env_paths_added, env_paths_prepended};
+use anyhow::{Context, Result};
+use semver::Version;
+use std::ffi::{OsStr, OsString};
+use std::path::PathBuf;
+use std::process::{Command, ExitStatus};
 
 impl HoudiniInstallation {
     pub fn new(install_path: &str, version_str: &str, ready: bool) -> Result<HoudiniInstallation> {
@@ -57,22 +57,23 @@ impl HoudiniInstallation {
 
     #[cfg(target_os = "windows")]
     fn user_prefs_dir(version: &Version) -> Result<PathBuf> {
+        let user_dirs =
+            directories::UserDirs::new().context("Failed to get user preference directory")?;
+        let pref = user_dirs
+            .document_dir()
+            .context("Failed to get Documents directory")?;
 
-        let user_dirs = directories::UserDirs::new().context("Failed to get user preference directory")?;
-        let pref = user_dirs.document_dir().context("Failed to get Documents directory")?;
-
-        let houdini_prefs = pref
-            .join(format!("houdini{}.{}", version.major, version.minor));
+        let houdini_prefs = pref.join(format!("houdini{}.{}", version.major, version.minor));
 
         Ok(houdini_prefs)
     }
 
     fn env(&self, project: Option<&Project>) -> Result<Vec<(OsString, OsString)>> {
         let bin_path = self.hfs.join("bin");
-        let sbin_path = self.hfs.join("sbin");
         let hb = self.hfs.join("bin");
         let hdso = self.hfs.join("..").join("Libraries");
         let hh = self.hfs.join("houdini");
+        let sbin_path = hh.join("sbin");
         let hhc = hh.join("config");
         let ht = hh.join("toolkit");
         let hsb = hb.join("sbin");
@@ -113,12 +114,7 @@ impl HoudiniInstallation {
         Ok(env)
     }
 
-    pub fn launch<I, S>(
-        &self,
-        args: I,
-        project: Option<&Project>,
-        attach: bool,
-    ) -> Result<()>
+    pub fn launch<I, S>(&self, args: I, project: Option<&Project>, attach: bool) -> Result<()>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
@@ -155,5 +151,4 @@ impl HoudiniInstallation {
             .stderr(std::process::Stdio::inherit());
         cmd.status().context(format!("Failed to run {:?}", cmd))
     }
-
 }
