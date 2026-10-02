@@ -14,6 +14,19 @@ pub struct Manifest {
     pub package_path: Vec<PathBuf>,
     #[serde(default)]
     pub hou_package_manifest: BTreeMap<PathBuf, SourceMetadata>,
+    /// Project pip packages (project manifest only).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pip: Option<PipManifest>,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct PipManifest {
+    /// Interpreter `major.minor` the lock was resolved with.
+    pub python: String,
+    /// Top-level requirement specs as requested.
+    pub requirements: Vec<String>,
+    /// `pip freeze` of the installed prefix.
+    pub lock: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

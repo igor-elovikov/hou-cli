@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use clap::Parser;
 use commands::{Cli, Commands};
 use console::style;
@@ -15,6 +15,7 @@ mod houdini;
 mod installations;
 mod launcher;
 pub mod package;
+mod pip;
 mod project;
 mod sidefx;
 mod utils;
@@ -29,7 +30,7 @@ pub fn main() -> Result<()> {
 
     let needs_project = matches!(
         cli.command,
-        Some(Commands::Run(_) | Commands::Package(_)) | None
+        Some(Commands::Run(_) | Commands::Package(_) | Commands::Pip(_) | Commands::Sync(_)) | None
     );
 
     let default_launch = match &cli.command {
@@ -98,6 +99,20 @@ pub fn main() -> Result<()> {
         Some(Commands::Package(cmd)) => {
             let houdini = hou.resolve_houdini(version_filter.as_deref())?;
             cmd.run(&hou, houdini, project.as_ref())?;
+        }
+        Some(Commands::Pip(cmd)) => {
+            let project = project
+                .as_ref()
+                .context("`hou pip` works only inside a project (no hproject.json found)")?;
+            let houdini = hou.resolve_houdini(version_filter.as_deref())?;
+            cmd.run(houdini, project)?;
+        }
+        Some(Commands::Sync(cmd)) => {
+            let project = project
+                .as_ref()
+                .context("`hou sync` works only inside a project (no hproject.json found)")?;
+            let houdini = hou.resolve_houdini(version_filter.as_deref())?;
+            cmd.run(houdini, project)?;
         }
 
         Some(Commands::Sidefx(cmd)) => cmd.run(&hou)?,

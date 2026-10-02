@@ -236,7 +236,7 @@ fn strip_hash_suffix(s: &str) -> &str {
     s
 }
 
-fn print_sync_report(report: &SyncReport) {
+pub(crate) fn print_sync_report(report: &SyncReport) {
     for p in &report.ok {
         println!("  ok      {}", p.display());
     }

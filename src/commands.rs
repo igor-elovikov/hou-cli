@@ -11,8 +11,10 @@ pub mod list;
 pub mod login;
 pub mod logout;
 mod package;
+mod pip;
 mod run;
 mod sidefx;
+mod sync;
 pub mod uninstall;
 pub mod update;
 
@@ -52,6 +54,11 @@ pub enum Commands {
     /// Package management
     #[command(visible_alias = "pm")]
     Package(package::PackageCmd),
+    /// Project pip packages
+    Pip(pip::PipCmd),
+    /// Sync project Houdini and pip packages with the manifest
+    #[command(visible_alias = "s")]
+    Sync(sync::SyncCmd),
     /// Initialize project in directory
     Init(init::InitCmd),
     /// Calls to SideFX WebAPI. Builds list, downloading and changelog
