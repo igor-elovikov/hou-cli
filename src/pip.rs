@@ -12,9 +12,8 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-pub const PIP_PACKAGES_DIR: &str = "pip-packages";
 const FORCED_SITE_PACKAGES: &str = "site-packages-forced";
-const ENV_VALUE_PREFIX: &str = "$HPROJECT/pip-packages";
+const ENV_VALUE_PREFIX: &str = "$HPROJECT/hou-packages/pip";
 
 /// Prints interpreter version and install paths for the prefix in argv[1].
 const LAYOUT_SCRIPT: &str = r#"
@@ -48,7 +47,7 @@ pub enum PipSyncStatus {
     Repaired(usize),
 }
 
-/// Project pip packages installed with `--prefix` into `<project>/pip-packages`.
+/// Project pip packages installed with `--prefix` into `<project>/hou-packages/pip`.
 pub struct Pip<'a> {
     project: &'a Project,
     python: PathBuf,
@@ -59,7 +58,7 @@ pub struct Pip<'a> {
 impl<'a> Pip<'a> {
     pub fn open(houdini: &HoudiniInstallation, project: &'a Project) -> Result<Self> {
         let python = houdini.python()?;
-        let prefix = project.root.join(PIP_PACKAGES_DIR);
+        let prefix = project.pip_dir();
         let layout = query_layout(&python, &prefix)?;
         log::debug!("Python {} layout: {:?}", layout.version, layout);
         let manifest = Manifest::load_from(&project.manifest_path)?;
@@ -163,7 +162,7 @@ impl<'a> Pip<'a> {
     }
 
     fn prefix(&self) -> PathBuf {
-        self.project.root.join(PIP_PACKAGES_DIR)
+        self.project.pip_dir()
     }
 
     /// Builds a fresh prefix from `pip.requirements`, then stores the new lock.
@@ -187,9 +186,12 @@ impl<'a> Pip<'a> {
     /// Installs into a staging prefix and swaps it in on success; returns the freeze of it.
     fn build(&self, install_args: &[OsString]) -> Result<Vec<String>> {
         let prefix = self.prefix();
+        let parent = self.project.packages_dir();
+        fs::create_dir_all(&parent)
+            .with_context(|| format!("Failed to create {}", parent.display()))?;
         let staging = tempfile::Builder::new()
-            .prefix(".pip-packages-")
-            .tempdir_in(&self.project.root)
+            .prefix(".pip-")
+            .tempdir_in(&parent)
             .context("Failed to create pip staging directory")?;
 
         let mut args: Vec<OsString> = vec![
@@ -407,7 +409,7 @@ fn query_layout(python: &Path, prefix: &Path) -> Result<PythonLayout> {
     serde_json::from_slice(&output.stdout).context("Failed to parse Python layout")
 }
 
-/// `{"VAR": {"value": "$HPROJECT/pip-packages/<rel>", "method": "prepend"}}`.
+/// `{"VAR": {"value": "$HPROJECT/hou-packages/pip/<rel>", "method": "prepend"}}`.
 fn prepend_entry(var: &str, rel: &Path) -> Value {
     let rel = rel
         .components()
@@ -425,7 +427,7 @@ fn is_pip_env_entry(entry: &Value) -> bool {
         let value = v.get("value").unwrap_or(v);
         value
             .as_str()
-            .is_some_and(|s| s.starts_with(ENV_VALUE_PREFIX))
+            .is_some_and(|s| s.starts_with(&format!("{ENV_VALUE_PREFIX}/")))
     })
 }
 
@@ -477,7 +479,7 @@ fn lines_file(lines: &[String]) -> Result<tempfile::NamedTempFile> {
 
 /// Moves `src` over `dst`, keeping `dst` intact until the move succeeds.
 fn replace_dir(src: &Path, dst: &Path) -> Result<()> {
-    let backup = dst.with_file_name(format!(".{PIP_PACKAGES_DIR}-old"));
+    let backup = dst.with_file_name(".pip-old");
     if backup.exists() {
         fs::remove_dir_all(&backup)
             .with_context(|| format!("Failed to remove {}", backup.display()))?;

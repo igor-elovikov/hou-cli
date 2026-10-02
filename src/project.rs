@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 pub const PROJECT_MARKER: &str = "hproject.json";
 pub const PROJECT_PKGS_DIR: &str = "hou-packages";
 pub const PROJECT_MANIFEST: &str = "hproject-manifest.json";
+pub const PROJECT_PIP_DIR: &str = "pip";
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct HouProjectOptions {
@@ -77,6 +78,11 @@ impl Project {
 
     pub fn packages_dir(&self) -> PathBuf {
         self.root.join(PROJECT_PKGS_DIR)
+    }
+
+    /// Prefix for project pip packages.
+    pub fn pip_dir(&self) -> PathBuf {
+        self.packages_dir().join(PROJECT_PIP_DIR)
     }
 }
 
